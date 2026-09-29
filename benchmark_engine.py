@@ -187,7 +187,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
     task_start_time = time.time()
     action_chain = []
     status = "FAILED"
-    max_steps = 15
+    max_steps = 8
     step_count = 0
     
     for step in range(max_steps):
@@ -278,7 +278,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                             last_coords = re.findall(r'\d+', action_chain[-1])
                             if len(last_coords) >= 4:
                                 l_p1x, l_p1y, l_p2x, l_p2y = map(int, last_coords[:4])
-                                if math.hypot(p1x - l_p1x, p1y - l_p1y) < 30 and math.hypot(p2x - l_p2x, p2y - l_p2y) < 30:
+                                if math.hypot(p1x - l_p1x, p1y - l_p1y) < 40 and math.hypot(p2x - l_p2x, p2y - l_p2y) < 40:
                                     is_repetitive = True
                                     
                         if is_repetitive:
@@ -314,7 +314,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                         last_coords = re.findall(r'\d+', action_chain[-1])
                         if len(last_coords) >= 2:
                             last_px, last_py = int(last_coords[0]), int(last_coords[1])
-                            if math.hypot(px - last_px, py - last_py) < 25:
+                            if math.hypot(px - last_px, py - last_py) < 40:
                                 is_repetitive = True
                                 
                     if is_repetitive:
