@@ -12,6 +12,7 @@ import datetime
 import ctypes
 import re
 import json
+import math
 from google import genai
 from google.genai import types
 
@@ -291,8 +292,16 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 if px is not None:
                     action_str = f"Click({px},{py})"
                     
-                    if len(action_chain) > 0 and action_chain[-1] == action_str:
-                        print("⚠️ REPETITIVE ACTION DETECTED! Forcing DONE to prevent infinite loop.")
+                    is_repetitive = False
+                    if len(action_chain) > 0 and action_chain[-1].startswith("Click("):
+                        last_coords = re.findall(r'\d+', action_chain[-1])
+                        if len(last_coords) >= 2:
+                            last_px, last_py = int(last_coords[0]), int(last_coords[1])
+                            if math.hypot(px - last_px, py - last_py) < 25:
+                                is_repetitive = True
+                                
+                    if is_repetitive:
+                        print("⚠️ REPETITIVE ACTION (JITTER) DETECTED! Forcing DONE to prevent infinite loop.")
                         action_chain.append("Forced-Done")
                         overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
                         status = "PASSED"
@@ -315,7 +324,12 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 if px is not None:
                     action_str = f"Type('{text_to_type}')"
                     
-                    if len(action_chain) > 0 and action_chain[-1] == action_str:
+                    is_repetitive = False
+                    if len(action_chain) > 0 and action_chain[-1].startswith("Type("):
+                        if action_chain[-1] == action_str:
+                            is_repetitive = True
+                            
+                    if is_repetitive:
                         print("⚠️ REPETITIVE ACTION DETECTED! Forcing DONE to prevent infinite loop.")
                         action_chain.append("Forced-Done")
                         overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")

@@ -14,5 +14,9 @@
     "[test_ui.html] Select Karnataka from the state dropdown": "CLICK [569, 226, 614, 461]\nPill\nSQ\nCI\nPILL\nGeometric Recognition\nSelect a State...\nDelete Data\nPrimary Action\nStart Engine\nStandard Interactions\nVLM Vision Testing Matrix\nAn advanced glassmorphic UI environment designed for testing visual foundation models.\nAuto-Scaling\nCloud Sync\nDebug Mode\nFeature Selection (Scrollable)\nFile C:/Users/msjan/Desktop/VLM%20TESTING/test_ui.html\nask: [test_ui.html] Select Karnataka from the state dropdown | Step 1 CAP\nAdvanced,\nVLM RESULTS - X\n28\u00b0\nQ\nL\nPs\nPr\nENGR\nIN\n01:01\n30-09-2026\nQ\nAsk Gemini\nX\nCloud Sync\nDebug Mode\nFeature Selection (Scrollable)\nAuto-Scaling\nVLM Vision Testing Matrix\nAn advanced glassmorphic UI environment designed for testing visual foundation models.\nask: [test_ui.html] Select Karnataka from the state dropdown | Step 1 CAP\nVLM RESULTS - X\nAdvanced,\nAsk Gemini\nX\nFile C:/Users/msjan/Desktop/VLM%20TESTING/test_ui.html\nSelect a State...\nStandard Interactions\nStart Engine\nPrimary Action\nDelete Data\nGeometric Recognition\nSQ\nCI\nPILL\n28\u00b0\nL\nPs\nPr\nENG\nIN\n01:01\n30-09-2026\nQ\nQ\nVO\nQ\nQ",
     "[test_ui_3.html] Click the Place Order button": "CLICK [654, 266, 706, 734]",
     "[test_ui_3.html] Type 'John' in the First Name field": "TYPE [401, 264, 447, 495] John",
-    "[test_ui.html] Click the Danger Delete Data button": "CLICK [408,227,458,318]"
+    "[test_ui.html] Click the Danger Delete Data button": "CLICK [408,227,458,318]",
+    "[test_ui_7.html] Click Bug Fix #402, then type 'Fix the memory leak' in the chat and hit Send": "CLICK [289, 34, 342, 237]",
+    "[test_ui_7.html] Click the Bug Fix #402 button in the sidebar": "CLICK [286, 31, 334, 240]",
+    "[test_ui_7.html] Type 'Analyze my code' in the input text area and click Send": "TYPE [601, 269, 649, 891] Analyze my code",
+    "[test_ui_7.html] Click the red Clear History button": "CLICK [404,40,443,234]"
 }

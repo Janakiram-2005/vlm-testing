@@ -23,9 +23,9 @@
     
     <div class="sidebar">
         <h3 style="margin-top:0;">Conversations</h3>
-        <button class="btn" onclick="showToast('Opened Chat 1')">📄 New Feature Design</button>
-        <button class="btn" onclick="showToast('Opened Chat 2')">📄 Bug Fix #402</button>
-        <button class="btn" onclick="showToast('Cleared History')" style="background: #ef4444; margin-top: 50px;">Clear History</button>
+        <button class="btn" onclick="openChat(this, 'Chat 1 Opened')">📄 New Feature Design</button>
+        <button class="btn" onclick="openChat(this, 'Chat 2 Opened')">📄 Bug Fix #402</button>
+        <button class="btn" onclick="clearHistory()" style="background: #ef4444; margin-top: 50px;">Clear History</button>
     </div>
     
     <div class="main">
@@ -45,10 +45,23 @@
             t.style.display = 'block';
             setTimeout(() => t.style.display = 'none', 2000);
         }
+        function openChat(btn, msg) {
+            document.querySelectorAll('.btn').forEach(b => b.style.background = '#334155');
+            btn.style.background = '#10b981'; // active color
+            showToast(msg);
+            let chat = document.getElementById('chat');
+            chat.innerHTML += `<div style="color: #cbd5e1; margin-bottom: 10px;">System: Loaded Context for ${msg}</div>`;
+        }
+        function clearHistory() {
+            showToast('Cleared History');
+            document.getElementById('chat').innerHTML = `<div style="color: #94a3b8; margin-bottom: 10px;">System: History Cleared.</div>`;
+        }
         function sendMsg() {
             let val = document.getElementById('prompt').value;
             if(val) {
                 showToast("Sent: " + val);
+                let chat = document.getElementById('chat');
+                chat.innerHTML += `<div style="color: #3b82f6; margin-bottom: 10px;">User: ${val}</div>`;
                 document.getElementById('prompt').value = "";
             } else {
                 showToast("Cannot send empty message");
