@@ -466,6 +466,19 @@ def run_batch_loop(overlay, total_batches):
                 await execute_multi_step_test(overlay, batch_number, f"[{ui_file}] {scenario}")
                 time.sleep(2) 
             
+            # Prevent RAM leak: Close the browser tab after the batch
+            pyautogui.hotkey('ctrl', 'w')
+            time.sleep(1)
+            
+            # Thermal Cooldown: 15-minute break every 10 batches
+            if batch_number % 10 == 0 and batch_number < total_batches:
+                for _ in range(5):
+                    pyautogui.hotkey('ctrl', 'w') # extra cleanup
+                    time.sleep(0.5)
+                for remaining_mins in range(15, 0, -1):
+                    overlay.update_ui(task_text="THERMAL COOLDOWN", status_text=f"COOLING LAPTOP: {remaining_mins} MINS LEFT", status_color="#ff7b72", result_text="PAUSED", result_color="#ff7b72")
+                    time.sleep(60)
+            
             if batch_number < total_batches:
                 for remaining in range(5, 0, -1):
                     overlay.update_ui(task_text=f"BATCH {batch_number} COMPLETE", status_text=f"NEXT IN {remaining}s...", status_color="#ff7b72")
