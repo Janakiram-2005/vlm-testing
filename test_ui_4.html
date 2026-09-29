@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced VLM Testing UI 4 - Drag & Popups</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0f172a; --surface: #1e293b; --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --text: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); padding: 40px; }
+        
+        .grid-container { display: flex; gap: 40px; margin-top: 20px; }
+        
+        /* Drag and Drop Game */
+        .game-board { background: var(--surface); padding: 20px; border-radius: 12px; width: 300px; }
+        .zones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .drop-zone { height: 100px; border: 2px dashed #475569; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: #94a3b8; }
+        
+        .draggable { width: 60px; height: 60px; background: var(--primary); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-weight: bold; cursor: grab; margin-bottom: 10px; }
+        .draggable:active { cursor: grabbing; }
+
+        /* Captcha Simulator */
+        .captcha-box { background: var(--surface); padding: 20px; border-radius: 12px; width: 300px; }
+        .captcha-slider-bg { height: 40px; background: #0f172a; border-radius: 20px; position: relative; margin-top: 20px; overflow: hidden; }
+        .captcha-slider-btn { width: 40px; height: 40px; background: var(--primary); border-radius: 50%; position: absolute; left: 0; cursor: grab; display: flex; justify-content: center; align-items: center; font-size: 20px; color: white;}
+        .captcha-slider-btn:active { cursor: grabbing; }
+        .captcha-text { position: absolute; width: 100%; text-align: center; line-height: 40px; pointer-events: none; color: #64748b; font-size: 0.9rem; }
+
+        /* Popup */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 100; }
+        .popup { background: var(--surface); padding: 30px; border-radius: 12px; text-align: center; border: 2px solid var(--danger); box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
+        .btn-close { background: var(--danger); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; }
+
+        #success-toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background-color: var(--success); color: white; padding: 16px 32px; border-radius: 50px; font-weight: 600; z-index: 1000; transition: top 0.4s; }
+        #success-toast.show { top: 40px; }
+    </style>
+</head>
+<body>
+    <div id="success-toast">Action Registered Successfully!</div>
+    
+    <!-- Random Sudden Popup -->
+    <div class="overlay" id="popup-overlay">
+        <div class="popup">
+            <h2 style="color: var(--danger); margin-top: 0;">⚠️ SESSION TIMEOUT WARNING</h2>
+            <p>Your session is about to expire due to inactivity.</p>
+            <button class="btn-close" onclick="closePopup()">Keep Session Alive</button>
+        </div>
+    </div>
+
+    <h1>VLM Advanced Test: Drag, Drop & Dynamics</h1>
+    
+    <div class="grid-container">
+        
+        <!-- Drag and Drop Test -->
+        <div class="game-board">
+            <h3>Object Relocation Task</h3>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Drag the Blue Box into Target Zone B.</p>
+            
+            <div id="box1" class="draggable" draggable="true" ondragstart="drag(event)">BOX</div>
+            
+            <div class="zones">
+                <div class="drop-zone" ondrop="drop(event, 'Zone A')" ondragover="allowDrop(event)">Target Zone A</div>
+                <div class="drop-zone" ondrop="drop(event, 'Zone B')" ondragover="allowDrop(event)">Target Zone B</div>
+            </div>
+        </div>
+
+        <!-- Captcha Test -->
+        <div class="captcha-box">
+            <h3>Security Verification</h3>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Slide the verification button to the extreme right to unlock.</p>
+            
+            <div class="captcha-slider-bg">
+                <div class="captcha-text">Slide to verify</div>
+                <div id="slider-btn" class="captcha-slider-btn" draggable="true" ondragstart="drag(event)">→</div>
+            </div>
+            <div class="drop-zone" style="height: 40px; margin-top: 10px; border-color: transparent;" ondrop="dropCaptcha(event)" ondragover="allowDrop(event)">
+                <!-- Invisible drop zone on the right side -->
+                <div style="float: right; width: 40px; height: 100%; border: 2px dashed var(--success); border-radius: 50%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Toast System ---
+        let toastTimeout;
+        function triggerSuccess(message) {
+            const toast = document.getElementById('success-toast');
+            toast.textContent = "✅ " + message;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
+        }
+
+        // --- Drag and Drop Logic ---
+        function allowDrop(ev) { ev.preventDefault(); }
+        function drag(ev) { ev.dataTransfer.setData("text", ev.target.id); }
+        function drop(ev, zoneName) {
+            ev.preventDefault();
+            var data = ev.dataTransfer.getData("text");
+            ev.target.appendChild(document.getElementById(data));
+            triggerSuccess("Dropped Box in " + zoneName);
+        }
+        function dropCaptcha(ev) {
+            ev.preventDefault();
+            triggerSuccess("Captcha Solved!");
+        }
+
+        // --- Popup Logic (Triggers after 6 seconds randomly) ---
+        setTimeout(() => {
+            document.getElementById('popup-overlay').style.display = 'flex';
+        }, 6000);
+
+        function closePopup() {
+            document.getElementById('popup-overlay').style.display = 'none';
+            triggerSuccess("Popup Dismissed!");
+        }
+    </script>
+</body>
+</html>

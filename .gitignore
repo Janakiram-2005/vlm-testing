@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Credentials and sensitive files
+*.json
+!spatial_memory.json
+
+# Image artifacts
+*.jpg
+*.jpeg
+*.png
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# MacOS
+.DS_Store

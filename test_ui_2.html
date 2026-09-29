@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced VLM Testing UI 2 - Data Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #f8fafc; --surface: #ffffff; --primary: #6366f1; --success: #22c55e; --text: #0f172a; --border: #e2e8f0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); padding: 40px; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+        
+        .sidebar { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .nav-item { padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: 500; }
+        .nav-item:hover { background: #f1f5f9; }
+        .nav-item.active { background: var(--primary); color: white; }
+        
+        .main { display: flex; flex-direction: column; gap: 20px; }
+        .card { background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        
+        .controls { display: flex; gap: 15px; margin-bottom: 20px; }
+        input[type="date"], input[type="text"], select, button { padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; }
+        button.primary { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
+        button.primary:hover { background: #4f46e5; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: #64748b; }
+        
+        /* Success Message Overlay */
+        #success-toast {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background-color: var(--success); color: white; padding: 16px 32px; border-radius: 50px;
+            font-weight: 600; z-index: 1000; transition: top 0.4s;
+        }
+        #success-toast.show { top: 40px; }
+    </style>
+</head>
+<body>
+    <div id="success-toast">Action Registered Successfully!</div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <h3 style="margin-top: 0;">Dashboard Analytics</h3>
+            <div class="nav-item active" onclick="triggerSuccess('Navigated to Overview')">Overview</div>
+            <div class="nav-item" onclick="triggerSuccess('Navigated to User Reports')">User Reports</div>
+            <div class="nav-item" onclick="triggerSuccess('Navigated to Financials')">Financials</div>
+            <div class="nav-item" onclick="triggerSuccess('Navigated to Settings')">Settings</div>
+        </div>
+        
+        <div class="main">
+            <div class="card">
+                <h2>Data Filtering Engine</h2>
+                <div class="controls">
+                    <!-- Added a button to confirm search to make TYPE + CLICK combos possible -->
+                    <input type="text" id="search-input" placeholder="Search user ID...">
+                    <button onclick="triggerSuccess('Searched for: ' + document.getElementById('search-input').value)">Search</button>
+                    
+                    <select id="status-filter" onchange="triggerSuccess('Filtered by status: ' + this.value)">
+                        <option value="All">All Statuses</option>
+                        <option value="Active">Active Users</option>
+                        <option value="Suspended">Suspended</option>
+                    </select>
+                    <button class="primary" onclick="triggerSuccess('Clicked: Export CSV')">Export CSV</button>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>#8921</td><td>Alice Cooper</td><td><span style="color:var(--success)">Active</span></td><td><button onclick="triggerSuccess('Banned User #8921')">Ban</button></td></tr>
+                        <tr><td>#8922</td><td>Bob Marley</td><td><span style="color:var(--success)">Active</span></td><td><button onclick="triggerSuccess('Banned User #8922')">Ban</button></td></tr>
+                        <tr><td>#8923</td><td>Charlie Brown</td><td><span style="color:var(--primary)">Pending</span></td><td><button onclick="triggerSuccess('Approved User #8923')">Approve</button></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let toastTimeout;
+        function triggerSuccess(message) {
+            const toast = document.getElementById('success-toast');
+            toast.textContent = "✅ " + message;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
+        }
+    </script>
+</body>
+</html>

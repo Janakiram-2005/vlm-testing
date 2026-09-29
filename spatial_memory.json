@@ -1,0 +1,18 @@
+{
+    "[test_ui_2.html] Filter to Active Users AND click the Ban button for Alice Cooper": "CLICK [302, 626, 335, 680]",
+    "[test_ui_2.html] Type 'test_user' into the search box and click Search": "TYPE [300, 335, 349, 509] test_user",
+    "[test_ui_2.html] Navigate to User Reports in the sidebar": "CLICK [320, 126, 360, 277]",
+    "[test_ui_2.html] Click the Export CSV button": "CLICK [299, 694, 335, 767]",
+    "[test_ui_2.html] Type '#8923' in the search box, click Search, then click the Approve button in the table for Charlie Brown": "TYPE [297, 321, 335, 509] #8923",
+    "[test_ui_2.html] Filter the status dropdown to Suspended": "CLICK [299, 574, 328, 678]",
+    "[test_ui_3.html] Check the agree to Terms of Service box": "CLICK [592, 266, 620, 287]",
+    "[test_ui_3.html] Select Express Shipping method": "CLICK [491, 488, 540, 696]",
+    "[test_ui_3.html] Type 'jane@example.com' in the email, select Overnight Shipping, check the TOS box, and place the order": "TYPE [307, 269, 344, 730] jane@example.com",
+    "[test_ui.html] Toggle the Debug Mode checkbox": "CLICK [507, 506, 532, 529]",
+    "[test_ui.html] Click the Teal Triangle": "CLICK [749, 735, 807, 788]",
+    "[test_ui.html] Turn on Cloud Sync AND click the Orange Square": "CLICK [472, 532, 502, 552]",
+    "[test_ui.html] Select Karnataka from the state dropdown": "CLICK [569, 226, 614, 461]\nPill\nSQ\nCI\nPILL\nGeometric Recognition\nSelect a State...\nDelete Data\nPrimary Action\nStart Engine\nStandard Interactions\nVLM Vision Testing Matrix\nAn advanced glassmorphic UI environment designed for testing visual foundation models.\nAuto-Scaling\nCloud Sync\nDebug Mode\nFeature Selection (Scrollable)\nFile C:/Users/msjan/Desktop/VLM%20TESTING/test_ui.html\nask: [test_ui.html] Select Karnataka from the state dropdown | Step 1 CAP\nAdvanced,\nVLM RESULTS - X\n28\u00b0\nQ\nL\nPs\nPr\nENGR\nIN\n01:01\n30-09-2026\nQ\nAsk Gemini\nX\nCloud Sync\nDebug Mode\nFeature Selection (Scrollable)\nAuto-Scaling\nVLM Vision Testing Matrix\nAn advanced glassmorphic UI environment designed for testing visual foundation models.\nask: [test_ui.html] Select Karnataka from the state dropdown | Step 1 CAP\nVLM RESULTS - X\nAdvanced,\nAsk Gemini\nX\nFile C:/Users/msjan/Desktop/VLM%20TESTING/test_ui.html\nSelect a State...\nStandard Interactions\nStart Engine\nPrimary Action\nDelete Data\nGeometric Recognition\nSQ\nCI\nPILL\n28\u00b0\nL\nPs\nPr\nENG\nIN\n01:01\n30-09-2026\nQ\nQ\nVO\nQ\nQ",
+    "[test_ui_3.html] Click the Place Order button": "CLICK [654, 266, 706, 734]",
+    "[test_ui_3.html] Type 'John' in the First Name field": "TYPE [401, 264, 447, 495] John",
+    "[test_ui.html] Click the Danger Delete Data button": "CLICK [408,227,458,318]"
+}

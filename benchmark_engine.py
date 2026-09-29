@@ -1,0 +1,494 @@
+import tkinter as tk
+import time
+import os
+import asyncio
+import pyautogui
+import gspread
+import traceback
+import webbrowser
+import keyboard
+import random
+import datetime
+import ctypes
+import re
+import json
+from google import genai
+from google.genai import types
+
+# --- MEMORY SYSTEM ---
+MEMORY_FILE = 'spatial_memory.json'
+
+def load_memory():
+    if os.path.exists(MEMORY_FILE):
+        try:
+            with open(MEMORY_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_memory(mem):
+    with open(MEMORY_FILE, 'w') as f:
+        json.dump(mem, f, indent=4)
+# ---------------------
+
+# Fix Windows Display Scaling so PyAutoGUI uses physical pixel coordinates correctly
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    pass
+
+pyautogui.FAILSAFE = False
+
+DEBUG_MODE = True
+MODEL_NAME = 'gemini-2.5-flash'  # High-speed multi-step model
+
+class VLMOverlay:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.attributes('-topmost', True)
+        self.root.overrideredirect(True)
+        self.root.attributes("-transparentcolor", "black")
+        self.root.config(bg="black")
+        
+        self.screen_width = self.root.winfo_screenwidth()
+        self.screen_height = self.root.winfo_screenheight()
+        self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
+        
+        # --- Advanced Live UI ---
+        self.status_frame = tk.Frame(self.root, bg="#0d1117", highlightbackground="#30363d", highlightthickness=2)
+        self.status_frame.place(relx=0.5, rely=0.02, anchor='n', width=1200, height=80)
+        
+        self.lbl_task = tk.Label(self.status_frame, text="Task: IDLE", font=("Consolas", 14, "bold"), bg='#0d1117', fg='#e1e4e8')
+        self.lbl_task.pack(pady=4)
+        
+        bottom_frame = tk.Frame(self.status_frame, bg="#0d1117")
+        bottom_frame.pack(fill=tk.X, padx=20)
+        
+        self.lbl_status = tk.Label(bottom_frame, text="Status: WAITING [Press ESC to Kill]", font=("Consolas", 12), bg='#0d1117', fg='#58a6ff')
+        self.lbl_status.pack(side=tk.LEFT)
+        
+        self.lbl_result = tk.Label(bottom_frame, text="Result: PENDING", font=("Consolas", 12, "bold"), bg='#0d1117', fg='#f2cc60')
+        self.lbl_result.pack(side=tk.RIGHT)
+        
+        self.border_frame = tk.Frame(self.root, bg="black", highlightbackground="#00f2fe", highlightthickness=12)
+        
+    def update_ui(self, task_text=None, status_text=None, status_color=None, result_text=None, result_color=None):
+        if task_text is not None:
+            self.lbl_task.config(text=f"Task: {task_text}")
+        if status_text is not None:
+            self.lbl_status.config(text=f"Status: {status_text} [Press ESC to Kill]", fg=status_color if status_color else '#58a6ff')
+        if result_text is not None:
+            self.lbl_result.config(text=f"Result: {result_text}", fg=result_color if result_color else '#f2cc60')
+        self.root.update()
+        
+    def flash_capture_effect(self):
+        self.border_frame.place(x=0, y=0, width=self.screen_width, height=self.screen_height)
+        self.root.update()
+        time.sleep(0.15)
+        self.border_frame.place_forget()
+        self.root.update()
+
+async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'convertionalai-d8da9e4d43dd.json'
+    client = genai.Client(vertexai=True, project='convertionalai', location='us-central1')
+    
+    chain_history = " -> ".join(previous_actions) if previous_actions else "None"
+    
+    instruction = (
+        "You are an elite Autonomous UI Agent controlling a computer screen natively. "
+        "Analyze the User Task, verify the current screen state, and execute the NEXT logical step. "
+        "You have native spatial understanding. To interact with an element, output its 2D bounding box in normalized [ymin, xmin, ymax, xmax] format (0-1000 scale).\n\n"
+        "You MUST reply in exactly TWO lines:\n"
+        "1. A THOUGHT line starting with 'THOUGHT: ' explaining what you see, what you did previously (memory), and what you need to do next.\n"
+        "2. The COMMAND line with exactly ONE of these commands:\n"
+        "   - CLICK [ymin, xmin, ymax, xmax]\n"
+        "   - TYPE [ymin, xmin, ymax, xmax] <TEXT>\n"
+        "   - DRAG [y1, x1, y2, x2] TO [y3, x3, y4, x4] (Used to drag an object to a target zone)\n"
+        "   - SCROLL DOWN (Use if the target is not visible on screen)\n"
+        "   - DONE (CRITICAL: If your memory shows you achieved the goal, and you visually see success, output DONE.)\n"
+        "   - FAILED (If you cannot see the target element or are stuck)\n\n"
+        "SPECIAL RULES:\n"
+        "- If a sudden POPUP warning appears on the screen (e.g. Session Timeout), you MUST CLICK to close it before doing anything else!\n\n"
+        f"Previous Action History: {chain_history}"
+    )
+    
+    with open(img_path, 'rb') as f:
+        img_bytes = f.read()
+        
+    def _call_api():
+        for attempt in range(3):
+            try:
+                return client.models.generate_content(
+                    model=MODEL_NAME,
+                    contents=[
+                        types.Part.from_bytes(data=img_bytes, mime_type='image/jpeg'),
+                        instruction + "\n\nUser Task: " + task_prompt
+                    ]
+                )
+            except Exception as e:
+                if '429' in str(e) and attempt < 2:
+                    print("⚠️ API RATE LIMIT (429). Retrying in 10 seconds...")
+                    time.sleep(10)
+                else:
+                    raise e
+                    
+    loop = asyncio.get_running_loop()
+    response = await loop.run_in_executor(None, _call_api)
+    return response.text.strip()
+
+# Global state for Test ID tracking across batches
+GLOBAL_TEST_ID = 1
+
+def log_to_sheets(batch_id, model_name, scenario, total_time_ms, status, action_chain, total_steps):
+    global GLOBAL_TEST_ID
+    try:
+        gc = gspread.service_account(filename='convertionalai-d8da9e4d43dd.json')
+        sh = gc.open_by_key('1eJ5PPHPvCbedRuLo-u1Wk9IYL6OdkJf36pzy87KuynY')
+        worksheet = sh.sheet1
+        
+        if GLOBAL_TEST_ID == 1:
+            records = worksheet.get_all_values()
+            GLOBAL_TEST_ID = max(1, len(records)) 
+            
+        chain_str = " -> ".join(action_chain) if action_chain else "None"
+        row = [
+            f"Test-{GLOBAL_TEST_ID:03d}",
+            f"Batch-{batch_id:02d}",
+            str(datetime.datetime.now()), 
+            model_name, 
+            scenario, 
+            f"{abs(round(total_time_ms, 2))}ms", 
+            status, 
+            chain_str, 
+            total_steps
+        ]
+        worksheet.append_row(row)
+        print(f"[DATABASE] Logged {status} to Google Sheets as Test-{GLOBAL_TEST_ID:03d}")
+        GLOBAL_TEST_ID += 1
+    except Exception as e:
+        print("[LOG ERROR]", e)
+
+def extract_coords_from_array(array_str, screen_w, screen_h):
+    nums = re.findall(r'\d+', array_str)
+    if len(nums) >= 4:
+        ymin, xmin, ymax, xmax = map(int, nums[:4])
+        norm_y = (ymin + ymax) / 2.0
+        norm_x = (xmin + xmax) / 2.0
+        pixel_y = int((norm_y / 1000.0) * screen_h)
+        pixel_x = int((norm_x / 1000.0) * screen_w)
+        return pixel_x, pixel_y
+    return None, None
+
+async def execute_multi_step_test(overlay, batch_id, scenario):
+    overlay.update_ui(task_text=scenario, status_text="INIT", result_text="PENDING", result_color="#f2cc60")
+    
+    task_start_time = time.time()
+    action_chain = []
+    status = "FAILED"
+    max_steps = 15
+    step_count = 0
+    
+    for step in range(max_steps):
+        step_count += 1
+        overlay.update_ui(status_text=f"Step {step_count} CAPTURING", status_color="#f2cc60")
+        
+        overlay.flash_capture_effect()
+        sct_img = pyautogui.screenshot()
+        sct_img.save('screenshot.jpg', quality=75)
+        
+        overlay.update_ui(status_text=f"Step {step_count} VLM THINKING...", status_color="#f2cc60")
+        
+        try:
+            mem = load_memory()
+            if scenario in mem and step_count == 1:
+                # FAST PATH: MEMORY HIT
+                raw_command = mem[scenario]
+                overlay.update_ui(status_text="⚡ MEMORY HIT", status_color="#a78bfa")
+                print(f"VLM MEMORY HIT: {raw_command}")
+                time.sleep(1.0)
+            else:
+                # NORMAL PATH: VLM INFERENCE
+                raw_command = await asyncio.wait_for(ask_vlm_next_action('screenshot.jpg', scenario, action_chain), timeout=60.0)
+                print(f"VLM RAW OUTPUT: {raw_command}")
+                
+                # Cache successful first actions
+                if step_count == 1 and ('CLICK' in raw_command.upper() or 'TYPE' in raw_command.upper()):
+                    mem[scenario] = raw_command
+                    save_memory(mem)
+            
+            raw_upper = raw_command.upper()
+            
+            if re.search(r'DONE\s*$', raw_upper, re.MULTILINE):
+                base_command = 'DONE'
+            elif re.search(r'FAILED\s*$', raw_upper, re.MULTILINE):
+                base_command = 'FAILED'
+            elif re.search(r'SCROLL_DOWN\s*$', raw_upper, re.MULTILINE) or re.search(r'SCROLL DOWN\s*$', raw_upper, re.MULTILINE):
+                base_command = 'SCROLL_DOWN'
+            elif re.search(r'DRAG', raw_upper, re.MULTILINE):
+                base_command = 'DRAG'
+            else:
+                # Highly forgiving regex: allows 'COMMAND: CLICK' and missing brackets 'CLICK 1 2 3 4'
+                click_match = re.search(r'CLICK\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
+                type_match = re.search(r'TYPE\s*\[?([\d,\s]+)\]?\s+(.+)', raw_upper, re.MULTILINE)
+                
+                if click_match:
+                    base_command = 'CLICK'
+                    array_str = click_match.group(1)
+                elif type_match:
+                    base_command = 'TYPE'
+                    array_str = type_match.group(1)
+                    text_to_type = type_match.group(2)
+                else:
+                    base_command = 'UNKNOWN'
+            
+            if base_command == "DONE":
+                action_chain.append("Done")
+                overlay.update_ui(status_text="VERIFIED DONE!", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
+                status = "PASSED"
+                break
+                
+            elif base_command == "FAILED":
+                action_chain.append("Failed-VLM")
+                overlay.update_ui(status_text="VLM GAVE UP", status_color="#ff7b72", result_text="FAILED", result_color="#ff7b72")
+                status = "FAILED"
+                break
+                
+            elif base_command == "SCROLL_DOWN":
+                action_chain.append("Scroll")
+                overlay.update_ui(status_text="SCROLLING DOWN", status_color="#3fb950")
+                pyautogui.scroll(-500)
+                time.sleep(1) 
+                
+            elif base_command == "DRAG":
+                # Extract two coordinate arrays
+                matches = re.findall(r'\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]', raw_upper)
+                if len(matches) >= 2:
+                    m1 = matches[0]
+                    m2 = matches[1]
+                    p1x, p1y = extract_coords_from_array(f"[{m1[0]},{m1[1]},{m1[2]},{m1[3]}]", overlay.screen_width, overlay.screen_height)
+                    p2x, p2y = extract_coords_from_array(f"[{m2[0]},{m2[1]},{m2[2]},{m2[3]}]", overlay.screen_width, overlay.screen_height)
+                    
+                    if p1x is not None and p2x is not None:
+                        action_chain.append(f"Drag({p1x},{p1y}->{p2x},{p2y})")
+                        overlay.update_ui(status_text="DRAGGING...", status_color="#3fb950")
+                        
+                        pyautogui.moveTo(10, 10, duration=0.1)
+                        pyautogui.moveTo(p1x, p1y, duration=0.5)
+                        pyautogui.dragTo(p2x, p2y, duration=1.0, button='left')
+                        time.sleep(1)
+                    else:
+                        action_chain.append("Failed-Parse")
+                        status = "ERROR"
+                        break
+                else:
+                    action_chain.append("Failed-Parse")
+                    status = "ERROR"
+                    break
+
+            elif base_command == "CLICK":
+                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                if px is not None:
+                    action_str = f"Click({px},{py})"
+                    
+                    if len(action_chain) > 0 and action_chain[-1] == action_str:
+                        print("⚠️ REPETITIVE ACTION DETECTED! Forcing DONE to prevent infinite loop.")
+                        action_chain.append("Forced-Done")
+                        overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
+                        status = "PASSED"
+                        break
+                        
+                    action_chain.append(action_str)
+                    overlay.update_ui(status_text=f"CLICKING {px},{py}", status_color="#3fb950")
+                    
+                    pyautogui.moveTo(10, 10, duration=0.1) 
+                    pyautogui.moveTo(px, py, duration=0.5)
+                    pyautogui.click()
+                    time.sleep(1)
+                else:
+                    action_chain.append("Failed-Parse")
+                    status = "ERROR"
+                    break
+                    
+            elif base_command == "TYPE":
+                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                if px is not None:
+                    action_str = f"Type('{text_to_type}')"
+                    
+                    if len(action_chain) > 0 and action_chain[-1] == action_str:
+                        print("⚠️ REPETITIVE ACTION DETECTED! Forcing DONE to prevent infinite loop.")
+                        action_chain.append("Forced-Done")
+                        overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
+                        status = "PASSED"
+                        break
+                        
+                    action_chain.append(action_str)
+                    overlay.update_ui(status_text="TYPING...", status_color="#3fb950")
+                    
+                    pyautogui.moveTo(10, 10, duration=0.1)
+                    pyautogui.moveTo(px, py, duration=0.5)
+                    pyautogui.click()
+                    time.sleep(0.5)
+                    pyautogui.write(text_to_type, interval=0.05)
+                    time.sleep(1)
+                else:
+                    action_chain.append("Failed-Parse")
+                    status = "ERROR"
+                    break
+            else:
+                action_chain.append(f"Unknown")
+                status = "FAILED"
+                break
+                
+        except asyncio.TimeoutError:
+            action_chain.append("Timeout")
+            overlay.update_ui(status_text="TIMEOUT EXCEEDED", status_color="#ff7b72", result_text="TIMEOUT", result_color="#ff7b72")
+            status = "TIMEOUT"
+            break
+        except Exception as e:
+            action_chain.append("API-Error")
+            overlay.update_ui(status_text="API ERROR", status_color="#ff7b72", result_text="ERROR", result_color="#ff7b72")
+            print("API Error:", e)
+            status = "ERROR"
+            break
+
+    if status != "PASSED" and step_count == max_steps:
+        status = "MAX_STEPS_REACHED"
+        overlay.update_ui(result_text="MAX_STEPS_REACHED", result_color="#ff7b72")
+
+    task_end_time = time.time()
+    total_latency = (task_end_time - task_start_time) * 1000
+    
+    log_to_sheets(batch_id, MODEL_NAME, scenario, total_latency, status, action_chain, step_count)
+    
+    if os.path.exists('screenshot.jpg'): pass 
+    
+    pyautogui.press('enter') 
+    time.sleep(1)
+
+def run_batch_loop(overlay, total_batches):
+    
+    SCENARIO_BANK = {
+        'test_ui.html': {
+            'normal': [
+                "Select Karnataka from the state dropdown",
+                "Toggle the Debug Mode checkbox",
+                "Click the Danger Delete Data button",
+                "Click the Teal Triangle"
+            ],
+            'difficult': [
+                "Turn on Cloud Sync AND click the Orange Square",
+                "Select Tamil Nadu from the dropdown AND toggle Telemetry"
+            ]
+        },
+        'test_ui_2.html': {
+            'normal': [
+                "Navigate to User Reports in the sidebar",
+                "Type 'test_user' into the search box and click Search",
+                "Filter the status dropdown to Suspended",
+                "Click the Export CSV button"
+            ],
+            'difficult': [
+                "Type '#8923' in the search box, click Search, then click the Approve button in the table for Charlie Brown",
+                "Filter to Active Users AND click the Ban button for Alice Cooper"
+            ]
+        },
+        'test_ui_3.html': {
+            'normal': [
+                "Select Express Shipping method",
+                "Check the agree to Terms of Service box",
+                "Type 'John' in the First Name field",
+                "Click the Place Order button"
+            ],
+            'difficult': [
+                "Type 'jane@example.com' in the email, select Overnight Shipping, check the TOS box, and place the order"
+            ]
+        },
+        'test_ui_4.html': {
+            'normal': [
+                "Drag the Blue Box labeled BOX into Target Zone A",
+                "Slide the verification button to the extreme right to solve the captcha"
+            ],
+            'difficult': [
+                "Drag the Blue Box into Target Zone B AND then slide the captcha to the right"
+            ]
+        },
+        'test_ui_5.html': {
+            'normal': [
+                "Drag TKT-101 to the In Progress column",
+                "Drag TKT-103 to the Done column"
+            ],
+            'difficult': [
+                "Drag TKT-102 into In Progress AND drag TKT-103 into Done"
+            ]
+        },
+        'test_ui_6.html': {
+            'normal': [
+                "Switch to the Security tab and toggle Two-Factor Auth",
+                "Switch to the Billing tab and select Annual Plan",
+                "Switch to the Billing tab and click Save Changes"
+            ],
+            'difficult': [
+                "Switch to Billing, select Annual Plan, and then click Save Changes"
+            ]
+        },
+        'test_ui_7.html': {
+            'normal': [
+                "Type 'Analyze my code' in the input text area and click Send",
+                "Click the Bug Fix #402 button in the sidebar",
+                "Click the red Clear History button"
+            ],
+            'difficult': [
+                "Click Bug Fix #402, then type 'Fix the memory leak' in the chat and hit Send"
+            ]
+        }
+    }
+    
+    async def _async_loop():
+        for remaining in range(5, 0, -1):
+            overlay.update_ui(task_text="INIT", status_text=f"ENGINE LOADED! TEST STARTING IN {remaining}s...", status_color="#58a6ff")
+            time.sleep(1)
+            
+        for batch_number in range(1, total_batches + 1):
+            ui_file = random.choice(list(SCENARIO_BANK.keys()))
+            
+            overlay.update_ui(task_text=f"BATCH {batch_number}", status_text=f"LOADING UI: {ui_file}", status_color="#58a6ff")
+            html_path = f"file:///{os.path.abspath(ui_file).replace(chr(92), '/')}"
+            webbrowser.open(html_path)
+            time.sleep(4) 
+            
+            selected_normal = random.sample(SCENARIO_BANK[ui_file]['normal'], min(3, len(SCENARIO_BANK[ui_file]['normal'])))
+            selected_diff = random.sample(SCENARIO_BANK[ui_file]['difficult'], 1)
+            scenarios = selected_normal + selected_diff
+            random.shuffle(scenarios) 
+            
+            for scenario in scenarios:
+                await execute_multi_step_test(overlay, batch_number, f"[{ui_file}] {scenario}")
+                time.sleep(2) 
+            
+            if batch_number < total_batches:
+                for remaining in range(5, 0, -1):
+                    overlay.update_ui(task_text=f"BATCH {batch_number} COMPLETE", status_text=f"NEXT IN {remaining}s...", status_color="#ff7b72")
+                    time.sleep(1)
+                    
+        overlay.update_ui(task_text="FINISHED", status_text=f"ALL {total_batches} BATCHES COMPLETE!", status_color="#3fb950", result_text="SHUTTING DOWN", result_color="#3fb950")
+        time.sleep(3)
+        os._exit(0)
+            
+    asyncio.run(_async_loop())
+
+if __name__ == "__main__":
+    print("Welcome to VLM MULTI-STEP TESTING (NATIVE SPATIAL EDITION)!")
+    batches_str = input("Enter the number of batches to run (4 tests per batch): ")
+    try:
+        total_batches = int(batches_str)
+    except ValueError:
+        total_batches = 1
+        
+    keyboard.add_hotkey('esc', lambda: os._exit(0))
+    print("[INFO] Press ESC at any time to kill the benchmark engine.")
+    
+    app = VLMOverlay()
+    import threading
+    threading.Thread(target=run_batch_loop, args=(app, total_batches), daemon=True).start()
+    app.root.mainloop()

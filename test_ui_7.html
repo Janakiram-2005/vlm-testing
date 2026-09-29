@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLM UI 7 - IDE / Chat Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; gap: 20px; }
+        .sidebar { width: 250px; background: #1e293b; padding: 20px; border-radius: 12px; }
+        .btn { display: block; width: 100%; padding: 12px; background: #334155; color: white; border: none; border-radius: 6px; margin-bottom: 10px; cursor: pointer; text-align: left; }
+        .btn:hover { background: #475569; }
+        .main { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .chat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 20px; min-height: 300px; overflow-y: auto; }
+        .input-area { display: flex; gap: 10px; }
+        textarea { flex: 1; background: #1e293b; color: white; border: 1px solid #334155; padding: 15px; border-radius: 8px; font-family: inherit; resize: none; height: 50px; }
+        .send-btn { background: #3b82f6; color: white; border: none; padding: 0 30px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #toast { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); background: #10b981; padding: 15px 30px; border-radius: 30px; display: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="toast">Action Registered!</div>
+    
+    <div class="sidebar">
+        <h3 style="margin-top:0;">Conversations</h3>
+        <button class="btn" onclick="showToast('Opened Chat 1')">📄 New Feature Design</button>
+        <button class="btn" onclick="showToast('Opened Chat 2')">📄 Bug Fix #402</button>
+        <button class="btn" onclick="showToast('Cleared History')" style="background: #ef4444; margin-top: 50px;">Clear History</button>
+    </div>
+    
+    <div class="main">
+        <div class="chat-box" id="chat">
+            <div style="color: #94a3b8; margin-bottom: 10px;">System: How can I assist you today?</div>
+        </div>
+        <div class="input-area">
+            <textarea id="prompt" placeholder="Type your message here..."></textarea>
+            <button class="send-btn" onclick="sendMsg()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        function showToast(msg) {
+            let t = document.getElementById('toast');
+            t.innerText = "✅ " + msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 2000);
+        }
+        function sendMsg() {
+            let val = document.getElementById('prompt').value;
+            if(val) {
+                showToast("Sent: " + val);
+                document.getElementById('prompt').value = "";
+            } else {
+                showToast("Cannot send empty message");
+            }
+        }
+    </script>
+</body>
+</html>
