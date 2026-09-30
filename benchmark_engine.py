@@ -196,7 +196,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
     
     task_start_time = time.time()
     action_chain = []
-    status = "FAILED"
+    status = "IN_PROGRESS"
     max_steps = 8
     step_count = 0
     
@@ -241,12 +241,12 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
             elif re.search(r'DRAG', raw_upper, re.MULTILINE):
                 base_command = 'DRAG'
             else:
-                # Highly forgiving regex: allows 'COMMAND: CLICK' and missing brackets 'CLICK 1 2 3 4'
-                click_match = re.search(r'CLICK\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
-                type_match = re.search(r'TYPE\s*\[?([\d,\s]+)\]?(?:\s+(.*))?', raw_upper, re.MULTILINE)
-                copy_match = re.search(r'COPY\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
-                paste_match = re.search(r'PASTE\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
-                hover_match = re.search(r'HOVER\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
+                # Highly forgiving regex but requires brackets so words in THOUGHT line don't trigger it
+                click_match = re.search(r'CLICK\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
+                type_match = re.search(r'TYPE\s*\[([\d,\s]+)\](?:\s+(.*))?', raw_upper, re.MULTILINE)
+                copy_match = re.search(r'COPY\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
+                paste_match = re.search(r'PASTE\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
+                hover_match = re.search(r'HOVER\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
                 
                 if click_match:
                     base_command = 'CLICK'
@@ -314,6 +314,12 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                             action_chain.append("Forced-Done")
                             overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
                             status = "PASSED"
+                            trajectory_buffer.append({
+                                "step": step_count,
+                                "image": sct_img,
+                                "action_label": "DONE",
+                                "history": list(action_chain)
+                            })
                             break
                             
                         action_chain.append(action_str)
@@ -349,6 +355,12 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                         action_chain.append("Forced-Done")
                         overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
                         status = "PASSED"
+                        trajectory_buffer.append({
+                            "step": step_count,
+                            "image": sct_img,
+                            "action_label": "DONE",
+                            "history": list(action_chain)
+                        })
                         break
                         
                     action_chain.append(action_str)
@@ -377,6 +389,12 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                         action_chain.append("Forced-Done")
                         overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
                         status = "PASSED"
+                        trajectory_buffer.append({
+                            "step": step_count,
+                            "image": sct_img,
+                            "action_label": "DONE",
+                            "history": list(action_chain)
+                        })
                         break
                         
                     action_chain.append(action_str)
@@ -430,6 +448,8 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     action_chain.append(f"Hover({px},{py})")
                     overlay.update_ui(status_text=f"HOVERING AT {px},{py}", status_color="#3fb950")
                     pyautogui.moveTo(px, py, duration=0.2)
+                    pyautogui.moveRel(1, 1, duration=0.1) # Microscopic jiggle to force CSS hover
+                    pyautogui.moveRel(-1, -1, duration=0.1)
                     time.sleep(1)
                 else:
                     action_chain.append("Failed-Parse")
@@ -442,7 +462,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 break
                 
             # [BEHAVIORAL CLONING] Save valid command to buffer
-            if status != "ERROR" and status != "FAILED" and base_command != "DONE":
+            if status == "IN_PROGRESS" and base_command != "DONE":
                 trajectory_buffer.append({
                     "step": step_count,
                     "image": sct_img,
@@ -462,7 +482,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
             status = "ERROR"
             break
 
-    if status != "PASSED" and step_count == max_steps:
+    if status == "IN_PROGRESS" and step_count == max_steps:
         status = "MAX_STEPS_REACHED"
         overlay.update_ui(result_text="MAX_STEPS_REACHED", result_color="#ff7b72")
 
