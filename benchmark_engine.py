@@ -436,19 +436,19 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     status = "ERROR"
                     break
                     
+            else:
+                action_chain.append(f"Unknown")
+                status = "FAILED"
+                break
+                
             # [BEHAVIORAL CLONING] Save valid command to buffer
-            if status != "ERROR" and status != "FAILED":
+            if status != "ERROR" and status != "FAILED" and base_command != "DONE":
                 trajectory_buffer.append({
                     "step": step_count,
                     "image": sct_img,
                     "action_label": raw_upper.strip(),
                     "history": list(action_chain)
                 })
-                    
-            else:
-                action_chain.append(f"Unknown")
-                status = "FAILED"
-                break
                 
         except asyncio.TimeoutError:
             action_chain.append("Timeout")
