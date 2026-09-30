@@ -13,6 +13,8 @@ import ctypes
 import re
 import json
 import math
+import os
+import json
 from google import genai
 from google.genai import types
 
@@ -198,6 +200,9 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
     max_steps = 8
     step_count = 0
     
+    # [BEHAVIORAL CLONING] Buffer to hold trajectory data for offline ML
+    trajectory_buffer = []
+    
     for step in range(max_steps):
         step_count += 1
         overlay.update_ui(status_text=f"Step {step_count} CAPTURING", status_color="#f2cc60")
@@ -266,6 +271,13 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 action_chain.append("Done")
                 overlay.update_ui(status_text="VERIFIED DONE!", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
                 status = "PASSED"
+                
+                trajectory_buffer.append({
+                    "step": step_count,
+                    "image": sct_img,
+                    "action_label": "DONE",
+                    "history": list(action_chain)
+                })
                 break
                 
             elif base_command == "FAILED":
@@ -424,6 +436,15 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     status = "ERROR"
                     break
                     
+            # [BEHAVIORAL CLONING] Save valid command to buffer
+            if status != "ERROR" and status != "FAILED":
+                trajectory_buffer.append({
+                    "step": step_count,
+                    "image": sct_img,
+                    "action_label": raw_upper.strip(),
+                    "history": list(action_chain)
+                })
+                    
             else:
                 action_chain.append(f"Unknown")
                 status = "FAILED"
@@ -447,6 +468,27 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 
     task_end_time = time.time()
     total_latency = (task_end_time - task_start_time) * 1000
+    
+    # [BEHAVIORAL CLONING] Flush buffer to disk ONLY if trajectory was PERFECT
+    if status == "PASSED":
+        os.makedirs("vlm_dataset/images", exist_ok=True)
+        dataset_file = "vlm_dataset/dataset.jsonl"
+        run_id = f"test_{int(time.time())}"
+        
+        with open(dataset_file, "a", encoding="utf-8") as f:
+            for item in trajectory_buffer:
+                img_filename = f"{run_id}_step_{item['step']}.jpg"
+                img_path = os.path.join("vlm_dataset/images", img_filename)
+                item['image'].save(img_path, quality=85)
+                
+                record = {
+                    "image_file": img_filename,
+                    "instruction": scenario,
+                    "history": item["history"][:-1], # exclude current action
+                    "ground_truth": item["action_label"]
+                }
+                f.write(json.dumps(record) + "\n")
+        print(f"\n[DATASET] Harvested {len(trajectory_buffer)} perfect frames for Behavioral Cloning!")
     
     log_to_sheets(batch_id, MODEL_NAME, scenario, total_latency, status, action_chain, step_count)
     
@@ -599,3 +641,4 @@ if __name__ == "__main__":
     import threading
     threading.Thread(target=run_batch_loop, args=(app, total_batches), daemon=True).start()
     app.root.mainloop()
+
