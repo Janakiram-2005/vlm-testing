@@ -523,6 +523,15 @@ def run_batch_loop(overlay, total_batches):
             'difficult': [
                 "Copy the Tracking ID text from the FedEx email, and Paste it into the top search bar"
             ]
+        },
+        'test_ui_10.html': {
+            'normal': [
+                "Click the 'Insert' tab in the top ribbon",
+                "Look up the Revenue for Q3 in the table, copy it, and paste it into the 'Q3 Raw Revenue' input box"
+            ],
+            'difficult': [
+                "Copy the Revenue for Q3, paste it into the 'Q3 Raw Revenue' input box, and then click the Submit Audit Request button"
+            ]
         }
     }
     

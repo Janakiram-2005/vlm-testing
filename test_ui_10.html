@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Dashboard - Excel Clone</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #f3f2f1; }
+        /* Ribbon */
+        .ribbon { background: #217346; color: white; padding: 10px 20px; font-size: 14px; display: flex; gap: 20px; align-items: center; }
+        .ribbon-tab { cursor: pointer; padding: 5px 10px; }
+        .ribbon-tab.active { background: white; color: #217346; font-weight: bold; border-radius: 4px; }
+        
+        /* Main Workspace */
+        .workspace { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Spreadsheet Area */
+        .spreadsheet { flex: 2; background: white; border-right: 1px solid #c8c6c4; overflow: auto; }
+        table { border-collapse: collapse; width: 100%; font-size: 13px; }
+        th { background: #f3f2f1; border: 1px solid #c8c6c4; padding: 5px; font-weight: normal; color: #605e5c; text-align: center; }
+        td { border: 1px solid #c8c6c4; padding: 8px 10px; color: #323130; }
+        .cell-header { background: #f3f2f1; font-weight: bold; text-align: center; width: 30px; }
+        .copyable { font-family: monospace; user-select: all; cursor: text; }
+        
+        /* Side Panel (Form) */
+        .side-panel { flex: 1; background: #faf9f8; padding: 20px; box-sizing: border-box; }
+        .panel-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; color: #323130; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: #605e5c; margin-bottom: 5px; }
+        .form-group input { width: 100%; padding: 8px; border: 1px solid #8a8886; border-radius: 2px; font-size: 13px; box-sizing: border-box; }
+        .form-group input:focus { border-color: #0078d4; outline: none; }
+        .submit-btn { background: #0078d4; color: white; border: none; padding: 8px 16px; font-size: 14px; cursor: pointer; border-radius: 2px; }
+        .submit-btn:hover { background: #106ebe; }
+        
+        /* Toast */
+        #toast { position: fixed; bottom: 20px; right: 20px; background: #323130; color: #fff; padding: 12px 24px; border-radius: 4px; display: none; z-index: 1000; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="ribbon">
+        <div style="font-weight: bold; font-size: 18px;">📊 Sheets</div>
+        <div class="ribbon-tab active">Home</div>
+        <div class="ribbon-tab">Insert</div>
+        <div class="ribbon-tab">Data</div>
+        <div class="ribbon-tab">Review</div>
+    </div>
+
+    <div class="workspace">
+        <div class="spreadsheet">
+            <table>
+                <tr>
+                    <th class="cell-header"></th>
+                    <th>A (Quarter)</th>
+                    <th>B (Region)</th>
+                    <th>C (Revenue)</th>
+                    <th>D (Status)</th>
+                </tr>
+                <tr>
+                    <td class="cell-header">1</td>
+                    <td>Q1 2026</td>
+                    <td>North America</td>
+                    <td>$45,000</td>
+                    <td>Closed</td>
+                </tr>
+                <tr>
+                    <td class="cell-header">2</td>
+                    <td>Q2 2026</td>
+                    <td>EMEA</td>
+                    <td>$62,300</td>
+                    <td>Closed</td>
+                </tr>
+                <tr>
+                    <td class="cell-header">3</td>
+                    <td>Q3 2026</td>
+                    <td>APAC</td>
+                    <td class="copyable">89400</td>
+                    <td style="color: #d13438; font-weight: bold;">Pending Audit</td>
+                </tr>
+                <tr>
+                    <td class="cell-header">4</td>
+                    <td>Q4 2026</td>
+                    <td>LATAM</td>
+                    <td>$12,100</td>
+                    <td>Projected</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-title">End of Year Audit Form</div>
+            <div class="form-group">
+                <label>Auditor Name</label>
+                <input type="text" value="System Administrator" readonly>
+            </div>
+            <div class="form-group">
+                <label>Target Audit Region</label>
+                <select style="width: 100%; padding: 8px; border: 1px solid #8a8886;">
+                    <option>North America</option>
+                    <option>EMEA</option>
+                    <option selected>APAC</option>
+                    <option>LATAM</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Q3 Raw Revenue (Paste Value Here)</label>
+                <input type="text" id="revenueInput" placeholder="Paste value from cell C3" oninput="showToast('Pasted Value')">
+            </div>
+            <button class="submit-btn" onclick="submitForm()">Submit Audit Request</button>
+        </div>
+    </div>
+
+    <div id="toast">Action logged</div>
+
+    <script>
+        function showToast(msg) {
+            let t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+        
+        function submitForm() {
+            let val = document.getElementById('revenueInput').value;
+            if (val.trim() === '89400') {
+                showToast('✅ Audit Submitted Successfully!');
+            } else if (val.trim() === '') {
+                showToast('❌ Error: Revenue field is empty!');
+            } else {
+                showToast('❌ Error: Incorrect Revenue Value!');
+            }
+        }
+    </script>
+</body>
+</html>
