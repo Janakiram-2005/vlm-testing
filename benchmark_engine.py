@@ -106,6 +106,9 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
         "   - CLICK [ymin, xmin, ymax, xmax]\n"
         "   - TYPE [ymin, xmin, ymax, xmax] <TEXT>\n"
         "   - DRAG [y1, x1, y2, x2] TO [y3, x3, y4, x4] (Used to drag an object to a target zone)\n"
+        "   - COPY [ymin, xmin, ymax, xmax] (Double-clicks the coordinates to highlight text, then hits Ctrl+C)\n"
+        "   - PASTE [ymin, xmin, ymax, xmax] (Clicks the coordinates to focus an input field, then hits Ctrl+V)\n"
+        "   - HOVER [ymin, xmin, ymax, xmax] (Moves the mouse to the target to reveal hidden hover-menus without clicking)\n"
         "   - SCROLL DOWN (Use if the target is not visible on screen)\n"
         "   - DONE (CRITICAL: If your memory shows you achieved the goal, and you visually see success, output DONE.)\n"
         "   - FAILED (If you cannot see the target element or are stuck)\n\n"
@@ -232,6 +235,9 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 # Highly forgiving regex: allows 'COMMAND: CLICK' and missing brackets 'CLICK 1 2 3 4'
                 click_match = re.search(r'CLICK\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
                 type_match = re.search(r'TYPE\s*\[?([\d,\s]+)\]?\s+(.+)', raw_upper, re.MULTILINE)
+                copy_match = re.search(r'COPY\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
+                paste_match = re.search(r'PASTE\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
+                hover_match = re.search(r'HOVER\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
                 
                 if click_match:
                     base_command = 'CLICK'
@@ -240,6 +246,15 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     base_command = 'TYPE'
                     array_str = type_match.group(1)
                     text_to_type = type_match.group(2)
+                elif copy_match:
+                    base_command = 'COPY'
+                    array_str = copy_match.group(1)
+                elif paste_match:
+                    base_command = 'PASTE'
+                    array_str = paste_match.group(1)
+                elif hover_match:
+                    base_command = 'HOVER'
+                    array_str = hover_match.group(1)
                 else:
                     base_command = 'UNKNOWN'
             
@@ -363,6 +378,49 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     action_chain.append("Failed-Parse")
                     status = "ERROR"
                     break
+                    
+            elif base_command == "COPY":
+                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                if px is not None:
+                    action_chain.append(f"Copy({px},{py})")
+                    overlay.update_ui(status_text=f"COPYING TEXT AT {px},{py}", status_color="#a78bfa")
+                    pyautogui.moveTo(px, py, duration=0.2)
+                    pyautogui.doubleClick()
+                    time.sleep(0.2)
+                    pyautogui.hotkey('ctrl', 'c')
+                    time.sleep(1)
+                else:
+                    action_chain.append("Failed-Parse")
+                    status = "ERROR"
+                    break
+                    
+            elif base_command == "PASTE":
+                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                if px is not None:
+                    action_chain.append(f"Paste({px},{py})")
+                    overlay.update_ui(status_text=f"PASTING AT {px},{py}", status_color="#a78bfa")
+                    pyautogui.moveTo(px, py, duration=0.2)
+                    pyautogui.click()
+                    time.sleep(0.2)
+                    pyautogui.hotkey('ctrl', 'v')
+                    time.sleep(1)
+                else:
+                    action_chain.append("Failed-Parse")
+                    status = "ERROR"
+                    break
+                    
+            elif base_command == "HOVER":
+                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                if px is not None:
+                    action_chain.append(f"Hover({px},{py})")
+                    overlay.update_ui(status_text=f"HOVERING AT {px},{py}", status_color="#3fb950")
+                    pyautogui.moveTo(px, py, duration=0.2)
+                    time.sleep(1)
+                else:
+                    action_chain.append("Failed-Parse")
+                    status = "ERROR"
+                    break
+                    
             else:
                 action_chain.append(f"Unknown")
                 status = "FAILED"
@@ -455,6 +513,15 @@ def run_batch_loop(overlay, total_batches):
             ],
             'difficult': [
                 "Check the Apple brand filter, click 4 Stars & Up, and then click Add to cart for the Macbook"
+            ]
+        },
+        'test_ui_9.html': {
+            'normal': [
+                "Hover over the email from 'HR Department' to reveal the hidden menu, and click the Delete button",
+                "Hover over the email from 'AWS' and click Archive"
+            ],
+            'difficult': [
+                "Copy the Tracking ID text from the FedEx email, and Paste it into the top search bar"
             ]
         }
     }
