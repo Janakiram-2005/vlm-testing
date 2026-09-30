@@ -397,30 +397,6 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 def run_batch_loop(overlay, total_batches):
     
     SCENARIO_BANK = {
-        'test_ui.html': {
-            'normal': [
-                "Select Karnataka from the state dropdown",
-                "Toggle the Debug Mode checkbox",
-                "Click the Danger Delete Data button",
-                "Click the Teal Triangle"
-            ],
-            'difficult': [
-                "Turn on Cloud Sync AND click the Orange Square",
-                "Select Tamil Nadu from the dropdown AND toggle Telemetry"
-            ]
-        },
-        'test_ui_2.html': {
-            'normal': [
-                "Navigate to User Reports in the sidebar",
-                "Type 'test_user' into the search box and click Search",
-                "Filter the status dropdown to Suspended",
-                "Click the Export CSV button"
-            ],
-            'difficult': [
-                "Type '#8923' in the search box, click Search, then click the Approve button in the table for Charlie Brown",
-                "Filter to Active Users AND click the Ban button for Alice Cooper"
-            ]
-        },
         'test_ui_3.html': {
             'normal': [
                 "Select Express Shipping method",
@@ -468,6 +444,17 @@ def run_batch_loop(overlay, total_batches):
             ],
             'difficult': [
                 "Click Bug Fix #402, then type 'Fix the memory leak' in the chat and hit Send"
+            ]
+        },
+        'test_ui_8.html': {
+            'normal': [
+                "Click the 'See more like this' link for the Samsung Monitor",
+                "Check the 'Sony' checkbox in the Brand filter",
+                "Type 'Gaming Laptop' into the search bar and click the search icon button",
+                "Click the 'Add to cart' button for the LG OLED TV"
+            ],
+            'difficult': [
+                "Check the Apple brand filter, click 4 Stars & Up, and then click Add to cart for the Macbook"
             ]
         }
     }

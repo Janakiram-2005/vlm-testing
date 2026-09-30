@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Clone - Dense E-Commerce</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #eaeded; }
+        /* Header */
+        .header { background-color: #131921; color: white; padding: 10px 20px; display: flex; align-items: center; gap: 20px; }
+        .logo { font-size: 24px; font-weight: bold; }
+        .search-bar { display: flex; flex: 1; height: 40px; }
+        .search-select { background: #f3f3f3; border: none; padding: 0 10px; border-radius: 4px 0 0 4px; font-size: 12px; }
+        .search-input { flex: 1; border: none; padding: 0 10px; }
+        .search-btn { background: #febd69; border: none; padding: 0 15px; border-radius: 0 4px 4px 0; cursor: pointer; }
+        /* Subnav */
+        .subnav { background-color: #232f3e; color: white; padding: 5px 20px; font-size: 13px; display: flex; gap: 15px; }
+        .subnav a { color: white; text-decoration: none; }
+        .subnav a:hover { border: 1px solid white; margin: -1px; }
+        /* Main Layout */
+        .container { display: flex; padding: 20px; gap: 20px; }
+        /* Sidebar Filters */
+        .sidebar { width: 220px; background: white; padding: 15px; box-sizing: border-box; }
+        .filter-section { margin-bottom: 20px; }
+        .filter-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+        .filter-item { font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .filter-item input { margin: 0; }
+        .filter-item a { color: #007185; text-decoration: none; }
+        .filter-item a:hover { text-decoration: underline; color: #c45500; }
+        /* Product Grid */
+        .grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .card { background: white; padding: 15px; display: flex; flex-direction: column; }
+        .card img { width: 100%; height: 180px; background: #ddd; margin-bottom: 10px; }
+        .card-title { font-size: 15px; color: #0f1111; line-height: 1.3; margin-bottom: 5px; }
+        .card-author { font-size: 12px; color: #565959; margin-bottom: 5px; }
+        .card-price { font-size: 21px; color: #0f1111; margin-bottom: 5px; }
+        .card-prime { font-size: 12px; color: #00a8e1; font-weight: bold; font-style: italic; margin-bottom: 10px; }
+        .add-to-cart { background: #ffd814; border: 1px solid #fcd200; padding: 8px; border-radius: 20px; cursor: pointer; font-size: 12px; }
+        .micro-link { font-size: 10px; color: #007185; text-decoration: none; margin-top: 10px; text-align: center; }
+        .micro-link:hover { text-decoration: underline; color: #c45500; }
+        /* Toast */
+        #toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 10px 20px; border-radius: 4px; display: none; z-index: 1000; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">amazon</div>
+        <div class="search-bar">
+            <select class="search-select">
+                <option>All</option>
+                <option>Electronics</option>
+                <option>Computers</option>
+            </select>
+            <input type="text" class="search-input" placeholder="Search Amazon">
+            <button class="search-btn" onclick="showToast('Searched!')">🔍</button>
+        </div>
+        <div style="font-size: 14px;">Returns & Orders</div>
+        <div style="font-size: 14px; font-weight: bold;">🛒 Cart (0)</div>
+    </div>
+    <div class="subnav">
+        <a href="#" onclick="showToast('Opened All')">☰ All</a>
+        <a href="#" onclick="showToast('Opened Today Deals')">Today's Deals</a>
+        <a href="#" onclick="showToast('Opened Customer Service')">Customer Service</a>
+        <a href="#" onclick="showToast('Opened Registry')">Registry</a>
+        <a href="#" onclick="showToast('Opened Gift Cards')">Gift Cards</a>
+        <a href="#" onclick="showToast('Opened Sell')">Sell</a>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="filter-section">
+                <div class="filter-title">Customer Reviews</div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered 4 Stars')">⭐⭐⭐⭐ & Up</a></div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered 3 Stars')">⭐⭐⭐ & Up</a></div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered 2 Stars')">⭐⭐ & Up</a></div>
+            </div>
+            <div class="filter-section">
+                <div class="filter-title">Brand</div>
+                <div class="filter-item"><input type="checkbox" onclick="showToast('Checked Sony')"> Sony</div>
+                <div class="filter-item"><input type="checkbox" onclick="showToast('Checked Samsung')"> Samsung</div>
+                <div class="filter-item"><input type="checkbox" onclick="showToast('Checked LG')"> LG</div>
+                <div class="filter-item"><input type="checkbox" onclick="showToast('Checked Apple')"> Apple</div>
+                <div class="filter-item"><input type="checkbox" onclick="showToast('Checked Asus')"> Asus</div>
+                <div class="filter-item"><input type="checkbox" onclick="showToast('Checked Dell')"> Dell</div>
+            </div>
+            <div class="filter-section">
+                <div class="filter-title">Price</div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered Under 25')">Under $25</a></div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered 25 to 50')">$25 to $50</a></div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered 50 to 100')">$50 to $100</a></div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered 100 to 200')">$100 to $200</a></div>
+                <div class="filter-item"><a href="#" onclick="showToast('Filtered 200 Above')">$200 & Above</a></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Product 1 -->
+            <div class="card">
+                <img src="" alt="Sony Headphones">
+                <div class="card-title">Sony WH-1000XM5 Wireless Noise Canceling Headphones</div>
+                <div class="card-author">Over-ear auto-pause</div>
+                <div class="card-price">$348.00</div>
+                <div class="card-prime">✓ prime</div>
+                <button class="add-to-cart" onclick="showToast('Added Sony to Cart')">Add to cart</button>
+                <a href="#" class="micro-link" onclick="showToast('Clicked Sony Micro Link')">See more like this</a>
+            </div>
+            <!-- Product 2 -->
+            <div class="card">
+                <img src="" alt="Samsung Monitor">
+                <div class="card-title">Samsung 32" Odyssey G5 Gaming Monitor, 144Hz, 1ms</div>
+                <div class="card-author">Curved WQHD</div>
+                <div class="card-price">$299.99</div>
+                <div class="card-prime">✓ prime</div>
+                <button class="add-to-cart" onclick="showToast('Added Samsung to Cart')">Add to cart</button>
+                <a href="#" class="micro-link" onclick="showToast('Clicked Samsung Micro Link')">See more like this</a>
+            </div>
+            <!-- Product 3 -->
+            <div class="card">
+                <img src="" alt="Macbook">
+                <div class="card-title">Apple 2024 MacBook Air 13-inch Laptop with M3 chip</div>
+                <div class="card-author">8GB RAM, 256GB SSD</div>
+                <div class="card-price">$999.00</div>
+                <div class="card-prime">✓ prime</div>
+                <button class="add-to-cart" onclick="showToast('Added Macbook to Cart')">Add to cart</button>
+                <a href="#" class="micro-link" onclick="showToast('Clicked Macbook Micro Link')">See more like this</a>
+            </div>
+            <!-- Product 4 -->
+            <div class="card">
+                <img src="" alt="Dell XPS">
+                <div class="card-title">Dell XPS 15 9530 Laptop, 15.6" FHD+ Display, Intel Core i7</div>
+                <div class="card-author">16GB RAM, 512GB SSD</div>
+                <div class="card-price">$1,499.00</div>
+                <div class="card-prime">✓ prime</div>
+                <button class="add-to-cart" onclick="showToast('Added Dell to Cart')">Add to cart</button>
+                <a href="#" class="micro-link" onclick="showToast('Clicked Dell Micro Link')">See more like this</a>
+            </div>
+            <!-- Product 5 -->
+            <div class="card">
+                <img src="" alt="LG OLED">
+                <div class="card-title">LG C3 Series 55-Inch Class OLED evo Smart TV</div>
+                <div class="card-author">4K, WebOS</div>
+                <div class="card-price">$1,296.99</div>
+                <div class="card-prime">✓ prime</div>
+                <button class="add-to-cart" onclick="showToast('Added LG to Cart')">Add to cart</button>
+                <a href="#" class="micro-link" onclick="showToast('Clicked LG Micro Link')">See more like this</a>
+            </div>
+            <!-- Product 6 -->
+            <div class="card">
+                <img src="" alt="Asus Router">
+                <div class="card-title">ASUS RT-AX86U Pro (AX5700) Dual Band WiFi 6 Extendable Router</div>
+                <div class="card-author">Gaming Router</div>
+                <div class="card-price">$199.99</div>
+                <div class="card-prime">✓ prime</div>
+                <button class="add-to-cart" onclick="showToast('Added Asus to Cart')">Add to cart</button>
+                <a href="#" class="micro-link" onclick="showToast('Clicked Asus Micro Link')">See more like this</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Action Logged</div>
+
+    <script>
+        function showToast(msg) {
+            let t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+    </script>
+</body>
+</html>

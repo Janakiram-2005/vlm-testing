@@ -18,5 +18,10 @@
     "[test_ui_7.html] Click Bug Fix #402, then type 'Fix the memory leak' in the chat and hit Send": "CLICK [289, 34, 342, 237]",
     "[test_ui_7.html] Click the Bug Fix #402 button in the sidebar": "CLICK [286, 31, 334, 240]",
     "[test_ui_7.html] Type 'Analyze my code' in the input text area and click Send": "TYPE [601, 269, 649, 891] Analyze my code",
-    "[test_ui_7.html] Click the red Clear History button": "CLICK [404,40,443,234]"
+    "[test_ui_7.html] Click the red Clear History button": "CLICK [404,40,443,234]",
+    "[test_ui.html] Select Tamil Nadu from the dropdown AND toggle Telemetry": "CLICK [569, 219, 613, 461]",
+    "[test_ui_6.html] Switch to the Billing tab and select Annual Plan": "CLICK [226, 260, 256, 303]",
+    "[test_ui_6.html] Switch to Billing, select Annual Plan, and then click Save Changes": "CLICK [295, 597, 326, 686]",
+    "[test_ui_6.html] Switch to the Billing tab and click Save Changes": "CLICK [378, 575, 417, 650]",
+    "[test_ui_6.html] Switch to the Security tab and toggle Two-Factor Auth": "CLICK [220,158,252,228]"
 }
