@@ -180,10 +180,14 @@ def extract_coords_from_array(array_str, screen_w, screen_h):
         ymin, xmin, ymax, xmax = map(int, nums[:4])
         norm_y = (ymin + ymax) / 2.0
         norm_x = (xmin + xmax) / 2.0
-        pixel_y = int((norm_y / 1000.0) * screen_h)
-        pixel_x = int((norm_x / 1000.0) * screen_w)
-        return pixel_x, pixel_y
-    return None, None
+    elif len(nums) >= 2:
+        norm_y, norm_x = int(nums[0]), int(nums[1])
+    else:
+        return None, None
+        
+    pixel_y = int((norm_y / 1000.0) * screen_h)
+    pixel_x = int((norm_x / 1000.0) * screen_w)
+    return pixel_x, pixel_y
 
 async def execute_multi_step_test(overlay, batch_id, scenario):
     overlay.update_ui(task_text=scenario, status_text="INIT", result_text="PENDING", result_color="#f2cc60")
@@ -234,7 +238,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
             else:
                 # Highly forgiving regex: allows 'COMMAND: CLICK' and missing brackets 'CLICK 1 2 3 4'
                 click_match = re.search(r'CLICK\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
-                type_match = re.search(r'TYPE\s*\[?([\d,\s]+)\]?\s+(.+)', raw_upper, re.MULTILINE)
+                type_match = re.search(r'TYPE\s*\[?([\d,\s]+)\]?(?:\s+(.*))?', raw_upper, re.MULTILINE)
                 copy_match = re.search(r'COPY\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
                 paste_match = re.search(r'PASTE\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
                 hover_match = re.search(r'HOVER\s*\[?([\d,\s]+)\]?', raw_upper, re.MULTILINE)
@@ -245,7 +249,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 elif type_match:
                     base_command = 'TYPE'
                     array_str = type_match.group(1)
-                    text_to_type = type_match.group(2)
+                    text_to_type = type_match.group(2) if type_match.group(2) else ""
                 elif copy_match:
                     base_command = 'COPY'
                     array_str = copy_match.group(1)
@@ -277,13 +281,10 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 time.sleep(1) 
                 
             elif base_command == "DRAG":
-                # Extract two coordinate arrays
-                matches = re.findall(r'\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]', raw_upper)
+                matches = re.findall(r'\[\s*[\d,\s]+\s*\]', raw_upper)
                 if len(matches) >= 2:
-                    m1 = matches[0]
-                    m2 = matches[1]
-                    p1x, p1y = extract_coords_from_array(f"[{m1[0]},{m1[1]},{m1[2]},{m1[3]}]", overlay.screen_width, overlay.screen_height)
-                    p2x, p2y = extract_coords_from_array(f"[{m2[0]},{m2[1]},{m2[2]},{m2[3]}]", overlay.screen_width, overlay.screen_height)
+                    p1x, p1y = extract_coords_from_array(matches[0], overlay.screen_width, overlay.screen_height)
+                    p2x, p2y = extract_coords_from_array(matches[1], overlay.screen_width, overlay.screen_height)
                     
                     if p1x is not None and p2x is not None:
                         action_str = f"Drag({p1x},{p1y}->{p2x},{p2y})"
@@ -385,7 +386,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     action_chain.append(f"Copy({px},{py})")
                     overlay.update_ui(status_text=f"COPYING TEXT AT {px},{py}", status_color="#a78bfa")
                     pyautogui.moveTo(px, py, duration=0.2)
-                    pyautogui.doubleClick()
+                    pyautogui.click(clicks=3, interval=0.1) # Triple click selects all text reliably
                     time.sleep(0.2)
                     pyautogui.hotkey('ctrl', 'c')
                     time.sleep(1)
@@ -402,6 +403,8 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     pyautogui.moveTo(px, py, duration=0.2)
                     pyautogui.click()
                     time.sleep(0.2)
+                    pyautogui.hotkey('ctrl', 'a') # Clear existing text
+                    time.sleep(0.1)
                     pyautogui.hotkey('ctrl', 'v')
                     time.sleep(1)
                 else:
