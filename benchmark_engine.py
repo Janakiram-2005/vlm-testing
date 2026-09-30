@@ -110,7 +110,8 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
         "   - DONE (CRITICAL: If your memory shows you achieved the goal, and you visually see success, output DONE.)\n"
         "   - FAILED (If you cannot see the target element or are stuck)\n\n"
         "SPECIAL RULES:\n"
-        "- If a sudden POPUP warning appears on the screen (e.g. Session Timeout), you MUST CLICK to close it before doing anything else!\n\n"
+        "- If a sudden POPUP warning appears on the screen (e.g. Session Timeout), you MUST CLICK to close it before doing anything else!\n"
+        "- CRITICAL STATE CHECK: If the target is ALREADY in the correct state (e.g., checkbox is already checked, or item is already in the target column), you MUST immediately output DONE. Do NOT click it again or you will undo the success!\n\n"
         f"Previous Action History: {chain_history}"
     )
     
@@ -194,7 +195,6 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
         step_count += 1
         overlay.update_ui(status_text=f"Step {step_count} CAPTURING", status_color="#f2cc60")
         
-        overlay.flash_capture_effect()
         sct_img = pyautogui.screenshot()
         sct_img.save('screenshot.jpg', quality=75)
         
@@ -291,9 +291,8 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                         action_chain.append(action_str)
                         overlay.update_ui(status_text="DRAGGING...", status_color="#3fb950")
                         
-                        pyautogui.moveTo(10, 10, duration=0.1)
-                        pyautogui.moveTo(p1x, p1y, duration=0.5)
-                        pyautogui.dragTo(p2x, p2y, duration=1.0, button='left')
+                        pyautogui.moveTo(p1x, p1y, duration=0.2)
+                        pyautogui.dragTo(p2x, p2y, duration=0.8, button='left')
                         time.sleep(1)
                     else:
                         action_chain.append("Failed-Parse")
@@ -327,8 +326,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     action_chain.append(action_str)
                     overlay.update_ui(status_text=f"CLICKING {px},{py}", status_color="#3fb950")
                     
-                    pyautogui.moveTo(10, 10, duration=0.1) 
-                    pyautogui.moveTo(px, py, duration=0.5)
+                    pyautogui.moveTo(px, py, duration=0.2)
                     pyautogui.click()
                     time.sleep(1)
                 else:
@@ -356,8 +354,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     action_chain.append(action_str)
                     overlay.update_ui(status_text="TYPING...", status_color="#3fb950")
                     
-                    pyautogui.moveTo(10, 10, duration=0.1)
-                    pyautogui.moveTo(px, py, duration=0.5)
+                    pyautogui.moveTo(px, py, duration=0.2)
                     pyautogui.click()
                     time.sleep(0.5)
                     pyautogui.write(text_to_type, interval=0.05)
