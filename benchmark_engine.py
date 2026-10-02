@@ -104,7 +104,7 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
         "You have native spatial understanding. To interact with an element, output its 2D bounding box in normalized [ymin, xmin, ymax, xmax] format (0-1000 scale).\n\n"
         "You MUST reply in exactly TWO lines:\n"
         "1. A THOUGHT line starting with 'THOUGHT: ' explaining what you see, what you did previously (memory), and what you need to do next.\n"
-        "2. The COMMAND line with exactly ONE of these commands:\n"
+        "2. The COMMAND line with exactly ONE of these commands (OR chain them with ' THEN ' for MACRO-PLANNING):\n"
         "   - CLICK [ymin, xmin, ymax, xmax]\n"
         "   - TYPE [ymin, xmin, ymax, xmax] <TEXT>\n"
         "   - DRAG [y1, x1, y2, x2] TO [y3, x3, y4, x4] (Used to drag an object to a target zone)\n"
@@ -115,6 +115,8 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
         "   - DONE (CRITICAL: If your memory shows you achieved the goal, and you visually see success, output DONE.)\n"
         "   - FAILED (If you cannot see the target element or are stuck)\n\n"
         "SPECIAL RULES:\n"
+        "- MACRO-PLANNING: You may output up to 3 commands at once separated by ' THEN ' (e.g. 'CLICK [x] THEN SCROLL DOWN THEN CLICK [y]'). ONLY do this if you are confident the first action will not drastically change the layout or open a popup. If an action will load a new page, stop and wait for a new screenshot.\n"
+        "- If your command includes SCROLL DOWN, it must be the LAST command in your chain. You cannot chain clicks after a scroll.\n"
         "- If a sudden POPUP warning appears on the screen (e.g. Session Timeout), you MUST CLICK to close it before doing anything else!\n"
         "- CRITICAL STATE CHECK: If the target is ALREADY in the correct state (e.g., checkbox is already checked, or item is already in the target column), you MUST immediately output DONE. Do NOT click it again or you will undo the success!\n\n"
         f"Previous Action History: {chain_history}"
@@ -229,88 +231,137 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 if step_count == 1 and ('CLICK' in raw_command.upper() or 'TYPE' in raw_command.upper()):
                     mem[scenario] = raw_command
                     save_memory(mem)
+                   raw_upper = raw_command.upper()
             
-            raw_upper = raw_command.upper()
+            command_line = raw_upper
+            lines = raw_upper.strip().split('\n')
+            for line in reversed(lines):
+                if line.startswith("COMMAND:") or "CLICK" in line or "TYPE" in line or "DONE" in line or "SCROLL" in line:
+                    command_line = line
+                    break
             
-            if re.search(r'DONE\s*$', raw_upper, re.MULTILINE):
-                base_command = 'DONE'
-            elif re.search(r'FAILED\s*$', raw_upper, re.MULTILINE):
-                base_command = 'FAILED'
-            elif re.search(r'SCROLL_DOWN\s*$', raw_upper, re.MULTILINE) or re.search(r'SCROLL DOWN\s*$', raw_upper, re.MULTILINE):
-                base_command = 'SCROLL_DOWN'
-            elif re.search(r'DRAG', raw_upper, re.MULTILINE):
-                base_command = 'DRAG'
-            else:
-                # Highly forgiving regex but requires brackets so words in THOUGHT line don't trigger it
-                click_match = re.search(r'CLICK\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
-                type_match = re.search(r'TYPE\s*\[([\d,\s]+)\](?:\s+(.*))?', raw_upper, re.MULTILINE)
-                copy_match = re.search(r'COPY\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
-                paste_match = re.search(r'PASTE\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
-                hover_match = re.search(r'HOVER\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
-                
-                if click_match:
-                    base_command = 'CLICK'
-                    array_str = click_match.group(1)
-                elif type_match:
-                    base_command = 'TYPE'
-                    array_str = type_match.group(1)
-                    text_to_type = type_match.group(2) if type_match.group(2) else ""
-                elif copy_match:
-                    base_command = 'COPY'
-                    array_str = copy_match.group(1)
-                elif paste_match:
-                    base_command = 'PASTE'
-                    array_str = paste_match.group(1)
-                elif hover_match:
-                    base_command = 'HOVER'
-                    array_str = hover_match.group(1)
+            command_line = re.sub(r'^COMMAND:\s*', '', command_line).strip()
+            sub_commands = [c.strip() for c in re.split(r'\bTHEN\b', command_line) if c.strip()]
+            
+            for idx, sub_cmd in enumerate(sub_commands):
+                if re.search(r'DONE\s*$', sub_cmd, re.MULTILINE):
+                    base_command = 'DONE'
+                elif re.search(r'FAILED\s*$', sub_cmd, re.MULTILINE):
+                    base_command = 'FAILED'
+                elif re.search(r'SCROLL_DOWN\s*$', sub_cmd, re.MULTILINE) or re.search(r'SCROLL DOWN\s*$', sub_cmd, re.MULTILINE):
+                    base_command = 'SCROLL_DOWN'
+                elif re.search(r'DRAG', sub_cmd, re.MULTILINE):
+                    base_command = 'DRAG'
                 else:
-                    base_command = 'UNKNOWN'
-            
-            if base_command == "DONE":
-                action_chain.append("Done")
-                overlay.update_ui(status_text="VERIFIED DONE!", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
-                status = "PASSED"
-                
-                trajectory_buffer.append({
-                    "step": step_count,
-                    "image": sct_img,
-                    "action_label": "DONE",
-                    "history": list(action_chain)
-                })
-                break
-                
-            elif base_command == "FAILED":
-                action_chain.append("Failed-VLM")
-                overlay.update_ui(status_text="VLM GAVE UP", status_color="#ff7b72", result_text="FAILED", result_color="#ff7b72")
-                status = "FAILED"
-                break
-                
-            elif base_command == "SCROLL_DOWN":
-                action_chain.append("Scroll")
-                overlay.update_ui(status_text="SCROLLING DOWN", status_color="#3fb950")
-                pyautogui.scroll(-500)
-                time.sleep(1) 
-                
-            elif base_command == "DRAG":
-                matches = re.findall(r'\[\s*[\d,\s]+\s*\]', raw_upper)
-                if len(matches) >= 2:
-                    p1x, p1y = extract_coords_from_array(matches[0], overlay.screen_width, overlay.screen_height)
-                    p2x, p2y = extract_coords_from_array(matches[1], overlay.screen_width, overlay.screen_height)
+                    click_match = re.search(r'CLICK\s*\[([\d,\s]+)\]', sub_cmd, re.MULTILINE)
+                    type_match = re.search(r'TYPE\s*\[([\d,\s]+)\](?:\s+(.*))?', sub_cmd, re.MULTILINE)
+                    copy_match = re.search(r'COPY\s*\[([\d,\s]+)\]', sub_cmd, re.MULTILINE)
+                    paste_match = re.search(r'PASTE\s*\[([\d,\s]+)\]', sub_cmd, re.MULTILINE)
+                    hover_match = re.search(r'HOVER\s*\[([\d,\s]+)\]', sub_cmd, re.MULTILINE)
                     
-                    if p1x is not None and p2x is not None:
-                        action_str = f"Drag({p1x},{p1y}->{p2x},{p2y})"
+                    if click_match:
+                        base_command = 'CLICK'
+                        array_str = click_match.group(1)
+                    elif type_match:
+                        base_command = 'TYPE'
+                        array_str = type_match.group(1)
+                        text_to_type = type_match.group(2) if type_match.group(2) else ""
+                    elif copy_match:
+                        base_command = 'COPY'
+                        array_str = copy_match.group(1)
+                    elif paste_match:
+                        base_command = 'PASTE'
+                        array_str = paste_match.group(1)
+                    elif hover_match:
+                        base_command = 'HOVER'
+                        array_str = hover_match.group(1)
+                    else:
+                        base_command = 'UNKNOWN'
+                
+                if base_command == "DONE":
+                    action_chain.append("Done")
+                    overlay.update_ui(status_text="VERIFIED DONE!", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
+                    status = "PASSED"
+                    trajectory_buffer.append({
+                        "step": step_count,
+                        "image": sct_img,
+                        "action_label": "DONE",
+                        "history": list(action_chain)
+                    })
+                    break
+                    
+                elif base_command == "FAILED":
+                    action_chain.append("Failed-VLM")
+                    overlay.update_ui(status_text="VLM GAVE UP", status_color="#ff7b72", result_text="FAILED", result_color="#ff7b72")
+                    status = "FAILED"
+                    break
+                    
+                elif base_command == "SCROLL_DOWN":
+                    action_chain.append("Scroll")
+                    overlay.update_ui(status_text="SCROLLING DOWN", status_color="#3fb950")
+                    pyautogui.scroll(-500)
+                    time.sleep(1) 
+                    
+                elif base_command == "DRAG":
+                    matches = re.findall(r'\[\s*[\d,\s]+\s*\]', sub_cmd)
+                    if len(matches) >= 2:
+                        p1x, p1y = extract_coords_from_array(matches[0], overlay.screen_width, overlay.screen_height)
+                        p2x, p2y = extract_coords_from_array(matches[1], overlay.screen_width, overlay.screen_height)
+                        
+                        if p1x is not None and p2x is not None:
+                            action_str = f"Drag({p1x},{p1y}->{p2x},{p2y})"
+                            
+                            is_repetitive = False
+                            if len(action_chain) > 0 and action_chain[-1].startswith("Drag("):
+                                last_coords = re.findall(r'\d+', action_chain[-1])
+                                if len(last_coords) >= 4:
+                                    l_p1x, l_p1y, l_p2x, l_p2y = map(int, last_coords[:4])
+                                    if math.hypot(p1x - l_p1x, p1y - l_p1y) < 40 and math.hypot(p2x - l_p2x, p2y - l_p2y) < 40:
+                                        is_repetitive = True
+                                        
+                            if is_repetitive:
+                                print("⚠️ REPETITIVE ACTION (DRAG JITTER) DETECTED! Forcing DONE.")
+                                action_chain.append("Forced-Done")
+                                overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
+                                status = "PASSED"
+                                trajectory_buffer.append({
+                                    "step": step_count,
+                                    "image": sct_img,
+                                    "action_label": "DONE",
+                                    "history": list(action_chain)
+                                })
+                                break
+                                
+                            action_chain.append(action_str)
+                            overlay.update_ui(status_text="DRAGGING...", status_color="#3fb950")
+                            
+                            pyautogui.moveTo(p1x, p1y, duration=0.2)
+                            pyautogui.dragTo(p2x, p2y, duration=0.8, button='left')
+                            time.sleep(1)
+                        else:
+                            action_chain.append("Failed-Parse")
+                            status = "ERROR"
+                            break
+                    else:
+                        action_chain.append("Failed-Parse")
+                        status = "ERROR"
+                        break
+    
+                elif base_command == "CLICK":
+                    px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                    if px is not None:
+                        action_str = f"Click({px},{py})"
                         
                         is_repetitive = False
-                        if len(action_chain) > 0 and action_chain[-1].startswith("Drag("):
+                        if len(action_chain) > 0 and action_chain[-1].startswith("Click("):
                             last_coords = re.findall(r'\d+', action_chain[-1])
-                            if len(last_coords) >= 4:
-                                l_p1x, l_p1y, l_p2x, l_p2y = map(int, last_coords[:4])
-                                if math.hypot(p1x - l_p1x, p1y - l_p1y) < 40 and math.hypot(p2x - l_p2x, p2y - l_p2y) < 40:
+                            if len(last_coords) >= 2:
+                                last_px, last_py = int(last_coords[0]), int(last_coords[1])
+                                if math.hypot(px - last_px, py - last_py) < 40:
                                     is_repetitive = True
                                     
                         if is_repetitive:
-                            print("⚠️ REPETITIVE ACTION (DRAG JITTER) DETECTED! Forcing DONE.")
+                            print("⚠️ REPETITIVE ACTION (JITTER) DETECTED! Forcing DONE to prevent infinite loop.")
                             action_chain.append("Forced-Done")
                             overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
                             status = "PASSED"
@@ -323,150 +374,114 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                             break
                             
                         action_chain.append(action_str)
-                        overlay.update_ui(status_text="DRAGGING...", status_color="#3fb950")
+                        overlay.update_ui(status_text=f"CLICKING {px},{py}", status_color="#3fb950")
                         
-                        pyautogui.moveTo(p1x, p1y, duration=0.2)
-                        pyautogui.dragTo(p2x, p2y, duration=0.8, button='left')
+                        pyautogui.moveTo(px, py, duration=0.2)
+                        pyautogui.click()
+                        time.sleep(1) # Base safety delay for DOM updates
+                    else:
+                        action_chain.append("Failed-Parse")
+                        status = "ERROR"
+                        break
+                        
+                elif base_command == "TYPE":
+                    px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                    if px is not None:
+                        action_str = f"Type('{text_to_type}')"
+                        
+                        is_repetitive = False
+                        if len(action_chain) > 0 and action_chain[-1].startswith("Type("):
+                            if action_chain[-1] == action_str:
+                                is_repetitive = True
+                                
+                        if is_repetitive:
+                            print("⚠️ REPETITIVE ACTION DETECTED! Forcing DONE to prevent infinite loop.")
+                            action_chain.append("Forced-Done")
+                            overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
+                            status = "PASSED"
+                            trajectory_buffer.append({
+                                "step": step_count,
+                                "image": sct_img,
+                                "action_label": "DONE",
+                                "history": list(action_chain)
+                            })
+                            break
+                            
+                        action_chain.append(action_str)
+                        overlay.update_ui(status_text="TYPING...", status_color="#3fb950")
+                        
+                        pyautogui.moveTo(px, py, duration=0.2)
+                        pyautogui.click()
+                        time.sleep(0.5)
+                        pyautogui.write(text_to_type, interval=0.05)
                         time.sleep(1)
                     else:
                         action_chain.append("Failed-Parse")
                         status = "ERROR"
                         break
-                else:
-                    action_chain.append("Failed-Parse")
-                    status = "ERROR"
-                    break
-
-            elif base_command == "CLICK":
-                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
-                if px is not None:
-                    action_str = f"Click({px},{py})"
-                    
-                    is_repetitive = False
-                    if len(action_chain) > 0 and action_chain[-1].startswith("Click("):
-                        last_coords = re.findall(r'\d+', action_chain[-1])
-                        if len(last_coords) >= 2:
-                            last_px, last_py = int(last_coords[0]), int(last_coords[1])
-                            if math.hypot(px - last_px, py - last_py) < 40:
-                                is_repetitive = True
-                                
-                    if is_repetitive:
-                        print("⚠️ REPETITIVE ACTION (JITTER) DETECTED! Forcing DONE to prevent infinite loop.")
-                        action_chain.append("Forced-Done")
-                        overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
-                        status = "PASSED"
-                        trajectory_buffer.append({
-                            "step": step_count,
-                            "image": sct_img,
-                            "action_label": "DONE",
-                            "history": list(action_chain)
-                        })
+                        
+                elif base_command == "COPY":
+                    px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                    if px is not None:
+                        action_chain.append(f"Copy({px},{py})")
+                        overlay.update_ui(status_text=f"COPYING TEXT AT {px},{py}", status_color="#a78bfa")
+                        pyautogui.moveTo(px, py, duration=0.2)
+                        pyautogui.click(clicks=3, interval=0.1)
+                        time.sleep(0.2)
+                        pyautogui.hotkey('ctrl', 'c')
+                        time.sleep(1)
+                    else:
+                        action_chain.append("Failed-Parse")
+                        status = "ERROR"
                         break
                         
-                    action_chain.append(action_str)
-                    overlay.update_ui(status_text=f"CLICKING {px},{py}", status_color="#3fb950")
-                    
-                    pyautogui.moveTo(px, py, duration=0.2)
-                    pyautogui.click()
-                    time.sleep(1)
-                else:
-                    action_chain.append("Failed-Parse")
-                    status = "ERROR"
-                    break
-                    
-            elif base_command == "TYPE":
-                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
-                if px is not None:
-                    action_str = f"Type('{text_to_type}')"
-                    
-                    is_repetitive = False
-                    if len(action_chain) > 0 and action_chain[-1].startswith("Type("):
-                        if action_chain[-1] == action_str:
-                            is_repetitive = True
-                            
-                    if is_repetitive:
-                        print("⚠️ REPETITIVE ACTION DETECTED! Forcing DONE to prevent infinite loop.")
-                        action_chain.append("Forced-Done")
-                        overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
-                        status = "PASSED"
-                        trajectory_buffer.append({
-                            "step": step_count,
-                            "image": sct_img,
-                            "action_label": "DONE",
-                            "history": list(action_chain)
-                        })
+                elif base_command == "PASTE":
+                    px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                    if px is not None:
+                        action_chain.append(f"Paste({px},{py})")
+                        overlay.update_ui(status_text=f"PASTING AT {px},{py}", status_color="#a78bfa")
+                        pyautogui.moveTo(px, py, duration=0.2)
+                        pyautogui.click()
+                        time.sleep(0.2)
+                        pyautogui.hotkey('ctrl', 'a')
+                        time.sleep(0.1)
+                        pyautogui.hotkey('ctrl', 'v')
+                        time.sleep(1)
+                    else:
+                        action_chain.append("Failed-Parse")
+                        status = "ERROR"
                         break
                         
-                    action_chain.append(action_str)
-                    overlay.update_ui(status_text="TYPING...", status_color="#3fb950")
-                    
-                    pyautogui.moveTo(px, py, duration=0.2)
-                    pyautogui.click()
-                    time.sleep(0.5)
-                    pyautogui.write(text_to_type, interval=0.05)
-                    time.sleep(1)
+                elif base_command == "HOVER":
+                    px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                    if px is not None:
+                        action_chain.append(f"Hover({px},{py})")
+                        overlay.update_ui(status_text=f"HOVERING AT {px},{py}", status_color="#3fb950")
+                        pyautogui.moveTo(px, py, duration=0.2)
+                        pyautogui.moveRel(1, 1, duration=0.1)
+                        pyautogui.moveRel(-1, -1, duration=0.1)
+                        time.sleep(1)
+                    else:
+                        action_chain.append("Failed-Parse")
+                        status = "ERROR"
+                        break
+                        
                 else:
-                    action_chain.append("Failed-Parse")
-                    status = "ERROR"
+                    action_chain.append(f"Unknown")
+                    status = "FAILED"
                     break
                     
-            elif base_command == "COPY":
-                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
-                if px is not None:
-                    action_chain.append(f"Copy({px},{py})")
-                    overlay.update_ui(status_text=f"COPYING TEXT AT {px},{py}", status_color="#a78bfa")
-                    pyautogui.moveTo(px, py, duration=0.2)
-                    pyautogui.click(clicks=3, interval=0.1) # Triple click selects all text reliably
-                    time.sleep(0.2)
-                    pyautogui.hotkey('ctrl', 'c')
-                    time.sleep(1)
-                else:
-                    action_chain.append("Failed-Parse")
-                    status = "ERROR"
-                    break
+                # Macro-Action Safety Pause
+                if status == "IN_PROGRESS" and idx < len(sub_commands) - 1:
+                    overlay.update_ui(status_text="MACRO-PAUSE (1.0s)...", status_color="#a78bfa")
+                    time.sleep(1.0)
                     
-            elif base_command == "PASTE":
-                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
-                if px is not None:
-                    action_chain.append(f"Paste({px},{py})")
-                    overlay.update_ui(status_text=f"PASTING AT {px},{py}", status_color="#a78bfa")
-                    pyautogui.moveTo(px, py, duration=0.2)
-                    pyautogui.click()
-                    time.sleep(0.2)
-                    pyautogui.hotkey('ctrl', 'a') # Clear existing text
-                    time.sleep(0.1)
-                    pyautogui.hotkey('ctrl', 'v')
-                    time.sleep(1)
-                else:
-                    action_chain.append("Failed-Parse")
-                    status = "ERROR"
-                    break
-                    
-            elif base_command == "HOVER":
-                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
-                if px is not None:
-                    action_chain.append(f"Hover({px},{py})")
-                    overlay.update_ui(status_text=f"HOVERING AT {px},{py}", status_color="#3fb950")
-                    pyautogui.moveTo(px, py, duration=0.2)
-                    pyautogui.moveRel(1, 1, duration=0.1) # Microscopic jiggle to force CSS hover
-                    pyautogui.moveRel(-1, -1, duration=0.1)
-                    time.sleep(1)
-                else:
-                    action_chain.append("Failed-Parse")
-                    status = "ERROR"
-                    break
-                    
-            else:
-                action_chain.append(f"Unknown")
-                status = "FAILED"
-                break
-                
-            # [BEHAVIORAL CLONING] Save valid command to buffer
+            # [BEHAVIORAL CLONING] Save valid command sequence to buffer
             if status == "IN_PROGRESS" and base_command != "DONE":
                 trajectory_buffer.append({
                     "step": step_count,
                     "image": sct_img,
-                    "action_label": raw_upper.strip(),
+                    "action_label": command_line,
                     "history": list(action_chain)
                 })
                 
