@@ -112,10 +112,11 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
         "   - PASTE [ymin, xmin, ymax, xmax] (Clicks the coordinates to focus an input field, then hits Ctrl+V)\n"
         "   - HOVER [ymin, xmin, ymax, xmax] (Moves the mouse to the target to reveal hidden hover-menus without clicking)\n"
         "   - SCROLL DOWN (Use if the target is not visible on screen)\n"
+        "   - WAIT [seconds] (e.g. WAIT 1.5 - Use this to wait for an animation to finish between actions)\n"
         "   - DONE (CRITICAL: If your memory shows you achieved the goal, and you visually see success, output DONE.)\n"
         "   - FAILED (If you cannot see the target element or are stuck)\n\n"
         "SPECIAL RULES:\n"
-        "- MACRO-PLANNING: You may output up to 3 commands at once separated by ' THEN ' (e.g. 'CLICK [x] THEN SCROLL DOWN THEN CLICK [y]'). ONLY do this if you are confident the first action will not drastically change the layout or open a popup. If an action will load a new page, stop and wait for a new screenshot.\n"
+        "- MACRO-PLANNING: You may output up to 3 commands at once separated by ' THEN ' (e.g. 'CLICK [x] THEN WAIT 0.5 THEN CLICK [y]'). ALWAYS insert a WAIT between actions if the layout might shift or open a popup. If an action will completely load a new page, stop and wait for a new screenshot.\n"
         "- If your command includes SCROLL DOWN, it must be the LAST command in your chain. You cannot chain clicks after a scroll.\n"
         "- If a sudden POPUP warning appears on the screen (e.g. Session Timeout), you MUST CLICK to close it before doing anything else!\n"
         "- CRITICAL STATE CHECK: If the target is ALREADY in the correct state (e.g., checkbox is already checked, or item is already in the target column), you MUST immediately output DONE. Do NOT click it again or you will undo the success!\n\n"
@@ -252,6 +253,10 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     base_command = 'SCROLL_DOWN'
                 elif re.search(r'DRAG', sub_cmd, re.MULTILINE):
                     base_command = 'DRAG'
+                elif re.search(r'WAIT\s+([\d.]+)', sub_cmd, re.MULTILINE):
+                    base_command = 'WAIT'
+                    wait_match = re.search(r'WAIT\s+([\d.]+)', sub_cmd, re.MULTILINE)
+                    wait_time = float(wait_match.group(1)) if wait_match else 1.0
                 else:
                     click_match = re.search(r'CLICK\s*\[([\d,\s]+)\]', sub_cmd, re.MULTILINE)
                     type_match = re.search(r'TYPE\s*\[([\d,\s]+)\](?:\s+(.*))?', sub_cmd, re.MULTILINE)
@@ -466,15 +471,22 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                         status = "ERROR"
                         break
                         
+                elif base_command == "WAIT":
+                    action_chain.append(f"Wait({wait_time}s)")
+                    overlay.update_ui(status_text=f"WAITING {wait_time}s...", status_color="#a78bfa")
+                    time.sleep(wait_time)
+                    
                 else:
                     action_chain.append(f"Unknown")
                     status = "FAILED"
                     break
                     
-                # Macro-Action Safety Pause
+                # Macro-Action Safety Pause (Default fallback)
                 if status == "IN_PROGRESS" and idx < len(sub_commands) - 1:
-                    overlay.update_ui(status_text="MACRO-PAUSE (1.0s)...", status_color="#a78bfa")
-                    time.sleep(1.0)
+                    next_cmd_is_wait = bool(re.search(r'WAIT\s+', sub_commands[idx+1], re.MULTILINE))
+                    if base_command != "WAIT" and not next_cmd_is_wait:
+                        overlay.update_ui(status_text="MACRO-PAUSE (0.5s)...", status_color="#a78bfa")
+                        time.sleep(0.5)
                     
             # [BEHAVIORAL CLONING] Save valid command sequence to buffer
             if status == "IN_PROGRESS" and base_command != "DONE":
@@ -535,6 +547,83 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 def run_batch_loop(overlay, total_batches):
     
     SCENARIO_BANK = {
+        'test_ui_1.html': {
+            'normal': [
+                "Select 'Project Alpha' from the project dropdown",
+                "Click on the 'Team' navigation tab",
+                "Toggle the 'Dark Mode' switch",
+                "Click the 'Deploy' button in the Quick Actions card"
+            ],
+            'difficult': [
+                "Select 'Project Beta' from the dropdown, then click the 'Deploy' button, then toggle 'Dark Mode'"
+            ]
+        },
+        'test_ui_2.html': {
+            'normal': [
+                "Click the 'New Event' button",
+                "Select the checkbox for 'Team Sync'",
+                "Click the 'Month' view tab",
+                "Type 'Doctor Appointment' into the search bar"
+            ],
+            'difficult': [
+                "Switch to the 'Month' view, select the 'Team Sync' event, and then click 'New Event'"
+            ]
+        },
+        'test_ui_3.html': {
+            'normal': [
+                "Type 'jane@example.com' into the Email Address field",
+                "Select the 'Express' shipping method",
+                "Check the agree to Terms of Service box",
+                "Click the 'Place Order' button"
+            ],
+            'difficult': [
+                "Type 'jane@example.com' in the email, select Overnight Shipping, check the TOS box, and place the order"
+            ]
+        },
+        'test_ui_4.html': {
+            'normal': [
+                "Click on the 'Security' tab in the sidebar",
+                "Turn off the 'Email Notifications' toggle",
+                "Type 'John Doe' into the Full Name input field",
+                "Click the 'Save Changes' button"
+            ],
+            'difficult': [
+                "Switch to the Security tab, turn off Email Notifications, and then click Save Changes"
+            ]
+        },
+        'test_ui_5.html': {
+            'normal': [
+                "Click the 'Add Task' button",
+                "Drag the 'Design Homepage' card to the 'In Progress' column",
+                "Click the filter icon next to the search bar",
+                "Type 'Urgent' into the search tasks input"
+            ],
+            'difficult': [
+                "Type 'Urgent' in the search bar, then drag 'Design Homepage' to 'In Progress'"
+            ]
+        },
+        'test_ui_6.html': {
+            'normal': [
+                "Click on the 'Billing' tab",
+                "Select the 'Annual Plan' radio button",
+                "Toggle the 'Two-Factor Auth' switch",
+                "Click the 'Save Changes' button"
+            ],
+            'difficult': [
+                "Switch to the Billing tab, select Annual Plan, and then click Save Changes"
+            ]
+        },
+        'test_ui_7.html': {
+            'normal': [
+                "Click the 'Upload File' button",
+                "Select the 'Images' folder in the sidebar",
+                "Click the sort icon next to the Name column header",
+                "Type 'report.pdf' into the search files input"
+            ],
+            'difficult': [
+                "Go to the Images folder, search for 'report.pdf', and then click Upload File"
+            ]
+        },
         'test_ui_8.html': {
             'normal': [
                 "Click the 'See more like this' link for the Samsung Monitor",
@@ -544,6 +633,28 @@ def run_batch_loop(overlay, total_batches):
             ],
             'difficult': [
                 "Check the Apple brand filter, click 4 Stars & Up, and then click Add to cart for the Macbook"
+            ]
+        },
+        'test_ui_9.html': {
+            'normal': [
+                "Click the 'Compose' button",
+                "Click on the email from 'Alice Smith'",
+                "Type 'Project Update' into the search mail input",
+                "Hover over the email from 'HR Department' to reveal the hidden menu, and click the Delete button"
+            ],
+            'difficult': [
+                "Hover over the email from 'AWS' and click Archive"
+            ]
+        },
+        'test_ui_10.html': {
+            'normal': [
+                "Click the 'Generate Report' button",
+                "Select the 'Last 7 Days' option from the date range dropdown",
+                "Hover over the 'Revenue' bar chart to see the exact value",
+                "Type 'Sales' into the filter dashboard input"
+            ],
+            'difficult': [
+                "Copy the Revenue for Q3, paste it into the 'Q3 Raw Revenue' input box, and then click the Submit Audit Request button"
             ]
         }
     }
