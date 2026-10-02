@@ -29,5 +29,8 @@
     "[test_ui_8.html] Check the 'Sony' checkbox in the Brand filter": "CLICK [109, 21, 142, 38]",
     "[test_ui_8.html] Check the Apple brand filter, click 4 Stars & Up, and then click Add to cart for the Macbook": "CLICK [188, 22, 218, 126]",
     "[test_ui_8.html] Click the 'See more like this' link for the Samsung Monitor": "CLICK [370,556,389,642]",
-    "[test_ui_8.html] Type 'Gaming Laptop' into the search bar and click the search icon button": "TYPE [133, 222, 178, 765] Gaming LaptopTHOUGHT: I have successfully typed 'Gaming Laptop' into the search bar. Now I need to click the search icon. The search bar itself has a magnifying glass icon within it, which acts as the search button. Since there isn't a separate search button, clicking the search bar should confirm the input.CLICK [133, 222, 178, 765]"
+    "[test_ui_8.html] Type 'Gaming Laptop' into the search bar and click the search icon button": "TYPE [133, 222, 178, 765] Gaming LaptopTHOUGHT: I have successfully typed 'Gaming Laptop' into the search bar. Now I need to click the search icon. The search bar itself has a magnifying glass icon within it, which acts as the search button. Since there isn't a separate search button, clicking the search bar should confirm the input.CLICK [133, 222, 178, 765]",
+    "[test_ui_7.html] Type 'report.pdf' into the search files input": "TYPE [594, 280, 642, 874] report.pdf",
+    "[test_ui_1.html] Click on the 'Team' navigation tab": "THOUGHT: The task is to click on the 'Team' navigation tab in 'test_ui_1.html'. However, the current screen shows \"File not found\" for the specified path, indicating that the required page is not loaded. I cannot perform the task in this state.\nFAILED",
+    "[test_ui_1.html] Toggle the 'Dark Mode' switch": "CLICK [60, 317, 85, 786]"
 }

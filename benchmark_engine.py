@@ -547,34 +547,12 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 def run_batch_loop(overlay, total_batches):
     
     SCENARIO_BANK = {
-        'test_ui_1.html': {
-            'normal': [
-                "Select 'Project Alpha' from the project dropdown",
-                "Click on the 'Team' navigation tab",
-                "Toggle the 'Dark Mode' switch",
-                "Click the 'Deploy' button in the Quick Actions card"
-            ],
-            'difficult': [
-                "Select 'Project Beta' from the dropdown, then click the 'Deploy' button, then toggle 'Dark Mode'"
-            ]
-        },
-        'test_ui_2.html': {
-            'normal': [
-                "Click the 'New Event' button",
-                "Select the checkbox for 'Team Sync'",
-                "Click the 'Month' view tab",
-                "Type 'Doctor Appointment' into the search bar"
-            ],
-            'difficult': [
-                "Switch to the 'Month' view, select the 'Team Sync' event, and then click 'New Event'"
-            ]
-        },
         'test_ui_3.html': {
             'normal': [
-                "Type 'jane@example.com' into the Email Address field",
-                "Select the 'Express' shipping method",
+                "Select Express Shipping method",
                 "Check the agree to Terms of Service box",
-                "Click the 'Place Order' button"
+                "Type 'John' in the First Name field",
+                "Click the Place Order button"
             ],
             'difficult': [
                 "Type 'jane@example.com' in the email, select Overnight Shipping, check the TOS box, and place the order"
@@ -582,46 +560,40 @@ def run_batch_loop(overlay, total_batches):
         },
         'test_ui_4.html': {
             'normal': [
-                "Click on the 'Security' tab in the sidebar",
-                "Turn off the 'Email Notifications' toggle",
-                "Type 'John Doe' into the Full Name input field",
-                "Click the 'Save Changes' button"
+                "Drag the Blue Box labeled BOX into Target Zone A",
+                "Slide the verification button to the extreme right to solve the captcha"
             ],
             'difficult': [
-                "Switch to the Security tab, turn off Email Notifications, and then click Save Changes"
+                "Drag the Blue Box into Target Zone B AND then slide the captcha to the right"
             ]
         },
         'test_ui_5.html': {
             'normal': [
-                "Click the 'Add Task' button",
-                "Drag the 'Design Homepage' card to the 'In Progress' column",
-                "Click the filter icon next to the search bar",
-                "Type 'Urgent' into the search tasks input"
+                "Drag TKT-101 to the In Progress column",
+                "Drag TKT-103 to the Done column"
             ],
             'difficult': [
-                "Type 'Urgent' in the search bar, then drag 'Design Homepage' to 'In Progress'"
+                "Drag TKT-102 into In Progress AND drag TKT-103 into Done"
             ]
         },
         'test_ui_6.html': {
             'normal': [
-                "Click on the 'Billing' tab",
-                "Select the 'Annual Plan' radio button",
-                "Toggle the 'Two-Factor Auth' switch",
-                "Click the 'Save Changes' button"
+                "Switch to the Security tab and toggle Two-Factor Auth",
+                "Switch to the Billing tab and select Annual Plan",
+                "Switch to the Billing tab and click Save Changes"
             ],
             'difficult': [
-                "Switch to the Billing tab, select Annual Plan, and then click Save Changes"
+                "Switch to Billing, select Annual Plan, and then click Save Changes"
             ]
         },
         'test_ui_7.html': {
             'normal': [
-                "Click the 'Upload File' button",
-                "Select the 'Images' folder in the sidebar",
-                "Click the sort icon next to the Name column header",
-                "Type 'report.pdf' into the search files input"
+                "Type 'Analyze my code' in the input text area and click Send",
+                "Click the Bug Fix #402 button in the sidebar",
+                "Click the red Clear History button"
             ],
             'difficult': [
-                "Go to the Images folder, search for 'report.pdf', and then click Upload File"
+                "Click Bug Fix #402, then type 'Fix the memory leak' in the chat and hit Send"
             ]
         },
         'test_ui_8.html': {
@@ -637,21 +609,17 @@ def run_batch_loop(overlay, total_batches):
         },
         'test_ui_9.html': {
             'normal': [
-                "Click the 'Compose' button",
-                "Click on the email from 'Alice Smith'",
-                "Type 'Project Update' into the search mail input",
-                "Hover over the email from 'HR Department' to reveal the hidden menu, and click the Delete button"
+                "Hover over the email from 'HR Department' to reveal the hidden menu, and click the Delete button",
+                "Hover over the email from 'AWS' and click Archive"
             ],
             'difficult': [
-                "Hover over the email from 'AWS' and click Archive"
+                "Copy the Tracking ID text from the FedEx email, and Paste it into the top search bar"
             ]
         },
         'test_ui_10.html': {
             'normal': [
-                "Click the 'Generate Report' button",
-                "Select the 'Last 7 Days' option from the date range dropdown",
-                "Hover over the 'Revenue' bar chart to see the exact value",
-                "Type 'Sales' into the filter dashboard input"
+                "Click the 'Insert' tab in the top ribbon",
+                "Look up the Revenue for Q3 in the table, copy it, and paste it into the 'Q3 Raw Revenue' input box"
             ],
             'difficult': [
                 "Copy the Revenue for Q3, paste it into the 'Q3 Raw Revenue' input box, and then click the Submit Audit Request button"
