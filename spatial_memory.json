@@ -23,5 +23,11 @@
     "[test_ui_6.html] Switch to the Billing tab and select Annual Plan": "CLICK [226, 260, 256, 303]",
     "[test_ui_6.html] Switch to Billing, select Annual Plan, and then click Save Changes": "CLICK [295, 597, 326, 686]",
     "[test_ui_6.html] Switch to the Billing tab and click Save Changes": "CLICK [378, 575, 417, 650]",
-    "[test_ui_6.html] Switch to the Security tab and toggle Two-Factor Auth": "CLICK [220,158,252,228]"
+    "[test_ui_6.html] Switch to the Security tab and toggle Two-Factor Auth": "CLICK [220,158,252,228]",
+    "[test_ui_10.html] Click the 'Insert' tab in the top ribbon": "CLICK [130, 201, 150, 250]",
+    "[test_ui_8.html] Click the 'Add to cart' button for the LG OLED TV": "CLICK [655, 559, 747, 706]",
+    "[test_ui_8.html] Check the 'Sony' checkbox in the Brand filter": "CLICK [109, 21, 142, 38]",
+    "[test_ui_8.html] Check the Apple brand filter, click 4 Stars & Up, and then click Add to cart for the Macbook": "CLICK [188, 22, 218, 126]",
+    "[test_ui_8.html] Click the 'See more like this' link for the Samsung Monitor": "CLICK [370,556,389,642]",
+    "[test_ui_8.html] Type 'Gaming Laptop' into the search bar and click the search icon button": "TYPE [133, 222, 178, 765] Gaming LaptopTHOUGHT: I have successfully typed 'Gaming Laptop' into the search bar. Now I need to click the search icon. The search bar itself has a magnifying glass icon within it, which acts as the search button. Since there isn't a separate search button, clicking the search bar should confirm the input.CLICK [133, 222, 178, 765]"
 }

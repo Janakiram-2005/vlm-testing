@@ -231,7 +231,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 if step_count == 1 and ('CLICK' in raw_command.upper() or 'TYPE' in raw_command.upper()):
                     mem[scenario] = raw_command
                     save_memory(mem)
-                   raw_upper = raw_command.upper()
+            raw_upper = raw_command.upper()
             
             command_line = raw_upper
             lines = raw_upper.strip().split('\n')
