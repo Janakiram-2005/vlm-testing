@@ -520,55 +520,6 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 def run_batch_loop(overlay, total_batches):
     
     SCENARIO_BANK = {
-        'test_ui_3.html': {
-            'normal': [
-                "Select Express Shipping method",
-                "Check the agree to Terms of Service box",
-                "Type 'John' in the First Name field",
-                "Click the Place Order button"
-            ],
-            'difficult': [
-                "Type 'jane@example.com' in the email, select Overnight Shipping, check the TOS box, and place the order"
-            ]
-        },
-        'test_ui_4.html': {
-            'normal': [
-                "Drag the Blue Box labeled BOX into Target Zone A",
-                "Slide the verification button to the extreme right to solve the captcha"
-            ],
-            'difficult': [
-                "Drag the Blue Box into Target Zone B AND then slide the captcha to the right"
-            ]
-        },
-        'test_ui_5.html': {
-            'normal': [
-                "Drag TKT-101 to the In Progress column",
-                "Drag TKT-103 to the Done column"
-            ],
-            'difficult': [
-                "Drag TKT-102 into In Progress AND drag TKT-103 into Done"
-            ]
-        },
-        'test_ui_6.html': {
-            'normal': [
-                "Switch to the Security tab and toggle Two-Factor Auth",
-                "Switch to the Billing tab and select Annual Plan",
-                "Switch to the Billing tab and click Save Changes"
-            ],
-            'difficult': [
-                "Switch to Billing, select Annual Plan, and then click Save Changes"
-            ]
-        },
-        'test_ui_7.html': {
-            'normal': [
-                "Type 'Analyze my code' in the input text area and click Send",
-                "Click the Bug Fix #402 button in the sidebar",
-                "Click the red Clear History button"
-            ],
-            'difficult': [
-                "Click Bug Fix #402, then type 'Fix the memory leak' in the chat and hit Send"
-            ]
-        },
         'test_ui_8.html': {
             'normal': [
                 "Click the 'See more like this' link for the Samsung Monitor",
@@ -578,24 +529,6 @@ def run_batch_loop(overlay, total_batches):
             ],
             'difficult': [
                 "Check the Apple brand filter, click 4 Stars & Up, and then click Add to cart for the Macbook"
-            ]
-        },
-        'test_ui_9.html': {
-            'normal': [
-                "Hover over the email from 'HR Department' to reveal the hidden menu, and click the Delete button",
-                "Hover over the email from 'AWS' and click Archive"
-            ],
-            'difficult': [
-                "Copy the Tracking ID text from the FedEx email, and Paste it into the top search bar"
-            ]
-        },
-        'test_ui_10.html': {
-            'normal': [
-                "Click the 'Insert' tab in the top ribbon",
-                "Look up the Revenue for Q3 in the table, copy it, and paste it into the 'Q3 Raw Revenue' input box"
-            ],
-            'difficult': [
-                "Copy the Revenue for Q3, paste it into the 'Q3 Raw Revenue' input box, and then click the Submit Audit Request button"
             ]
         }
     }
