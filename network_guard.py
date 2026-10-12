@@ -33,37 +33,45 @@ class DomainCircuitBreaker:
 
 circuit_breaker = DomainCircuitBreaker(failure_threshold=2)
 
-def check_url_health(url, timeout=3.0):
+def check_url_health(url, timeout=3.5):
     """
-    Sub-second pre-flight check to catch 502/503/504 Bad Gateways and DNS crashes
-    BEFORE opening the browser, saving 15-30s of wasted wait time.
+    Sub-second pre-flight check to catch true server outages (500, 502, 503, 504)
+    or unreachable DNS. If the endpoint simply blocks Python requests (bot protection),
+    we gracefully proceed so the real browser can load it.
     """
     if circuit_breaker.is_tripped(url):
         return False, "CIRCUIT_BREAKER_TRIPPED"
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9"
     }
     try:
-        # Try HEAD first for fast response
-        res = requests.head(url, timeout=timeout, headers=headers, allow_redirects=True)
-        if res.status_code == 405: # Method not allowed, fall back to streaming GET
-            res = requests.get(url, timeout=timeout, headers=headers, stream=True)
-            res.close()
-            
-        if res.status_code in [500, 502, 503, 504]:
+        # Use lightweight streaming GET with short connect/read timeout
+        res = requests.get(url, timeout=(2.5, 3.5), headers=headers, stream=True, allow_redirects=True)
+        status_code = res.status_code
+        res.close()
+        
+        if status_code in [500, 502, 503, 504]:
             circuit_breaker.record_failure(url)
-            return False, f"NET_BAD_GATEWAY_{res.status_code}"
+            return False, f"NET_BAD_GATEWAY_{status_code}"
             
         return True, "OK"
+    except requests.exceptions.SSLError:
+        circuit_breaker.record_failure(url)
+        return False, "NET_SSL_ERROR"
+    except requests.exceptions.ConnectionError as e:
+        if "getaddrinfo failed" in str(e).lower() or "name resolution" in str(e).lower():
+            circuit_breaker.record_failure(url)
+            return False, "NET_DNS_FAILURE"
+        print(f"[PRE-FLIGHT INFO] Endpoint reset raw Python handshake; handing off to Chrome.")
+        return True, "OK"
     except requests.exceptions.Timeout:
-        circuit_breaker.record_failure(url)
-        return False, "NET_TIMEOUT"
-    except requests.exceptions.ConnectionError:
-        circuit_breaker.record_failure(url)
-        return False, "NET_CONNECTION_ERROR"
-    except Exception as e:
-        return False, f"NET_ERROR_{str(e)[:25]}"
+        print(f"[PRE-FLIGHT INFO] Pre-flight ping hit read delay; handing off to browser watchdog.")
+        return True, "OK"
+    except Exception:
+        return True, "OK"
 
 def get_lowres_frame():
     """Captures a lightweight downsampled grayscale frame for fast visual variance analysis."""

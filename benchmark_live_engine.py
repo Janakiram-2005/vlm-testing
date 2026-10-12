@@ -134,14 +134,47 @@ def extract_coords_from_array(array_str, screen_w, screen_h):
     pixel_x = int((norm_x / 1000.0) * screen_w)
     return pixel_x, pixel_y
 
+def parse_type_command(sub):
+    """
+    Robust parser handling both bracketed:
+    TYPE [72, 233, 97, 348] text
+    and unbracketed:
+    TYPE 72 233 97 348 text
+    """
+    m_bracket = re.search(r'TYPE\s*(\[.*?\])\s*(.*)', sub, re.IGNORECASE)
+    if m_bracket:
+        return m_bracket.group(1), m_bracket.group(2).strip().strip("'\"")
+        
+    m_raw = re.search(r'TYPE\s+((?:\d+[\s,]+){1,3}\d+)\s+(.*)', sub, re.IGNORECASE)
+    if m_raw:
+        return m_raw.group(1), m_raw.group(2).strip().strip("'\"")
+        
+    nums = re.findall(r'\d+', sub)
+    if len(nums) >= 2:
+        last_num = nums[3] if len(nums) >= 4 else nums[1]
+        last_idx = sub.rfind(last_num) + len(last_num)
+        text = sub[last_idx:].strip().strip("'\"")
+        coord_str = " ".join(nums[:4] if len(nums) >= 4 else nums[:2])
+        return coord_str, text
+        
+    return None, None
+
+_CACHED_WORKSHEET = None
+
+def get_live_worksheet():
+    global _CACHED_WORKSHEET
+    if _CACHED_WORKSHEET is None:
+        gc = gspread.service_account(filename='convertionalai-d8da9e4d43dd.json')
+        sh = gc.open_by_key(SPREADSHEET_ID)
+        _CACHED_WORKSHEET = sh.worksheet(WORKSHEET_NAME)
+    return _CACHED_WORKSHEET
+
 def log_to_live_sheet(batch_id, platform, scenario, page_load_ms, vlm_latency_ms, total_time_ms, status, error_type, action_chain, total_steps):
-    global GLOBAL_LIVE_TEST_ID
+    global GLOBAL_LIVE_TEST_ID, _CACHED_WORKSHEET
     max_retries = 3
     for attempt in range(1, max_retries + 1):
         try:
-            gc = gspread.service_account(filename='convertionalai-d8da9e4d43dd.json')
-            sh = gc.open_by_key(SPREADSHEET_ID)
-            worksheet = sh.worksheet(WORKSHEET_NAME)
+            worksheet = get_live_worksheet()
             
             if GLOBAL_LIVE_TEST_ID == 1:
                 records = worksheet.get_all_values()
@@ -168,6 +201,7 @@ def log_to_live_sheet(batch_id, platform, scenario, page_load_ms, vlm_latency_ms
             return
         except Exception as e:
             print(f"[DATABASE WARN] Attempt {attempt} failed: {e}")
+            _CACHED_WORKSHEET = None # Reset session on connection error
             time.sleep(2)
 
 async def ask_vlm_live_action(task_prompt, previous_actions):
@@ -292,9 +326,8 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
                     pyautogui.click()
                     time.sleep(1.0)
             elif "TYPE" in sub:
-                match = re.search(r'TYPE\s*(\[.*?\])\s*(.*)', sub)
-                if match:
-                    coord_str, text_to_type = match.group(1), match.group(2).strip().strip("'\"")
+                coord_str, text_to_type = parse_type_command(sub)
+                if coord_str is not None and text_to_type is not None:
                     px, py = extract_coords_from_array(coord_str, screen_w, screen_h)
                     if px is not None and py is not None:
                         overlay.update_ui(status_text=f"ACTION: TYPE '{text_to_type}'", status_color="#3fb950")
