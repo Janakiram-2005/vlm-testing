@@ -34,6 +34,11 @@ MODEL_NAME = 'gemini-2.5-flash'
 SPREADSHEET_ID = '1eJ5PPHPvCbedRuLo-u1Wk9IYL6OdkJf36pzy87KuynY'
 WORKSHEET_NAME = 'Live_Web_Benchmark'
 
+# --- Live Web Behavioral Cloning Dataset Configuration ---
+LIVE_DATASET_DIR = 'live_vlm_dataset'
+LIVE_IMAGES_DIR = os.path.join(LIVE_DATASET_DIR, 'images')
+LIVE_JSONL_FILE = os.path.join(LIVE_DATASET_DIR, 'dataset.jsonl')
+
 GLOBAL_LIVE_TEST_ID = 1
 
 # --- Tkinter Live Visual Overlay ---
@@ -221,6 +226,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
     start_time = time.time()
     vlm_total_latency_ms = 0.0
     action_chain = []
+    trajectory_buffer = []
     max_steps = 4
     status = "FAILED"
     error_type = "AI_SPATIAL_MISS"
@@ -230,7 +236,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
     for step in range(1, max_steps + 1):
         overlay.update_ui(status_text=f"STEP {step}/{max_steps}: CAPTURING LIVE BUFFER...", status_color="#58a6ff")
         overlay.flash_capture_effect()
-        capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4")
+        captured_pil = capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4")
         
         overlay.update_ui(status_text=f"STEP {step}/{max_steps}: GEMINI 2.5 FLASH INFERENCE...", status_color="#db61a2")
         vlm_t0 = time.time()
@@ -300,12 +306,40 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
             elif "WAIT" in sub:
                 time.sleep(1.0)
                 
+        # [BEHAVIORAL CLONING] Buffer trajectory frame
+        if captured_pil is not None and "DONE" not in command_line:
+            trajectory_buffer.append({
+                "step": step,
+                "image": captured_pil,
+                "action_label": command_line,
+                "history": list(action_chain)
+            })
+            
         if step_done:
             break
             
     total_time_ms = (time.time() - start_time) * 1000.0
     res_color = "#3fb950" if status == "PASSED" else "#ff7b72"
     overlay.update_ui(result_text=status, result_color=res_color, status_text=f"COMPLETED ({round(total_time_ms, 1)}ms)", status_color=res_color)
+    
+    # [LIVE BEHAVIORAL CLONING] Flush buffer to live_vlm_dataset ONLY if trajectory was PERFECT
+    if status == "PASSED" and trajectory_buffer:
+        os.makedirs(LIVE_IMAGES_DIR, exist_ok=True)
+        run_id = f"live_{int(time.time())}"
+        with open(LIVE_JSONL_FILE, "a", encoding="utf-8") as f:
+            for item in trajectory_buffer:
+                img_filename = f"{run_id}_step_{item['step']}.jpg"
+                img_path = os.path.join(LIVE_IMAGES_DIR, img_filename)
+                item['image'].save(img_path, quality=85)
+                record = {
+                    "image_file": img_filename,
+                    "platform": platform,
+                    "instruction": scenario,
+                    "history": item["history"][:-1],
+                    "ground_truth": item["action_label"]
+                }
+                f.write(json.dumps(record) + "\n")
+        print(f"\n[LIVE DATASET] Harvested {len(trajectory_buffer)} live web frames for Behavioral Cloning in '{LIVE_DATASET_DIR}'!")
     
     # Log to Google Sheets (Sheet 2)
     log_to_live_sheet(batch_id, platform, scenario, page_load_ms, vlm_total_latency_ms, total_time_ms, status, error_type, action_chain, len(action_chain))

@@ -9,6 +9,7 @@ convertionalai-*.json
 !spatial_memory.json
 !failure_logs.json
 !vlm_dataset/dataset.jsonl
+!live_vlm_dataset/dataset.jsonl
 
 # Transient screen capture artifacts (ignore root images/videos)
 /*.jpg
@@ -21,6 +22,8 @@ live_buffer.mp4
 # Preserve dataset images and data
 !vlm_dataset/
 !vlm_dataset/**
+!live_vlm_dataset/
+!live_vlm_dataset/**
 
 # Analysis generated charts (keep in repo if desired, or ignore)
 analysis_*.png

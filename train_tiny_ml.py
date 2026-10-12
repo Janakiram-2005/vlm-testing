@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -72,9 +73,11 @@ def train_florence2():
     # Here, we keep it simple and train the whole model (requires decent VRAM)
     model.train()
     
+    target_dataset = sys.argv[1] if len(sys.argv) > 1 else ("live_vlm_dataset" if os.path.exists("live_vlm_dataset/dataset.jsonl") else "vlm_dataset")
+    print(f"Training on dataset folder: '{target_dataset}'")
     dataset = VLMBehaviorDataset(
-        jsonl_file="vlm_dataset/dataset.jsonl",
-        img_dir="vlm_dataset/images",
+        jsonl_file=f"{target_dataset}/dataset.jsonl",
+        img_dir=f"{target_dataset}/images",
         processor=processor
     )
     
