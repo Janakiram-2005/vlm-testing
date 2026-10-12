@@ -3,6 +3,8 @@ import time
 import os
 import asyncio
 import pyautogui
+import cv2
+import numpy as np
 import gspread
 import traceback
 import webbrowser
@@ -20,6 +22,22 @@ from google.genai import types
 
 # --- MEMORY SYSTEM ---
 MEMORY_FILE = 'spatial_memory.json'
+FAILURE_FILE = 'failure_logs.json'
+
+def load_failures():
+    if os.path.exists(FAILURE_FILE):
+        try:
+            with open(FAILURE_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_failure(scenario, action_chain):
+    fails = load_failures()
+    fails[scenario] = action_chain
+    with open(FAILURE_FILE, 'w') as f:
+        json.dump(fails, f, indent=4)
 
 def load_memory():
     if os.path.exists(MEMORY_FILE):
@@ -92,7 +110,39 @@ class VLMOverlay:
         self.border_frame.place_forget()
         self.root.update()
 
-async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
+
+def capture_video_buffer(duration=1.0, fps=5, filename="buffer.mp4"):
+    frames = []
+    num_frames = int(duration * fps)
+    last_img = None
+    
+    for _ in range(num_frames):
+        start_time = time.time()
+        try:
+            img = pyautogui.screenshot()
+            img = img.resize((img.width // 2, img.height // 2))
+            last_img = img
+            frame = np.array(img)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            frames.append(frame)
+        except Exception:
+            pass
+            
+        elapsed = time.time() - start_time
+        sleep_time = max(0, (1.0 / fps) - elapsed)
+        time.sleep(sleep_time)
+
+    if frames:
+        height, width, layers = frames[0].shape
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
+        video = cv2.VideoWriter(filename, fourcc, fps, (width, height))
+        for frame in frames:
+            video.write(frame)
+        video.release()
+        
+    return last_img
+
+async def ask_vlm_next_action(img_path, task_prompt, previous_actions, past_failure_chain=None):
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'convertionalai-d8da9e4d43dd.json'
     client = genai.Client(vertexai=True, project='convertionalai', location='us-central1')
     
@@ -100,7 +150,7 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
     
     instruction = (
         "You are an elite Autonomous UI Agent controlling a computer screen natively. "
-        "Analyze the User Task, verify the current screen state, and execute the NEXT logical step. "
+        "Analyze the 1-second video buffer of the screen to understand the trajectory of any moving 3D/dynamic elements. Target the elements at their FINAL resting position. Verify the current screen state, and execute the NEXT logical step. "
         "You have native spatial understanding. To interact with an element, output its 2D bounding box in normalized [ymin, xmin, ymax, xmax] format (0-1000 scale).\n\n"
         "You MUST reply in exactly TWO lines:\n"
         "1. A THOUGHT line starting with 'THOUGHT: ' explaining what you see, what you did previously (memory), and what you need to do next.\n"
@@ -122,8 +172,11 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
         "- CRITICAL STATE CHECK: If the target is ALREADY in the correct state (e.g., checkbox is already checked, or item is already in the target column), you MUST immediately output DONE. Do NOT click it again or you will undo the success!\n\n"
         f"Previous Action History: {chain_history}"
     )
+    if past_failure_chain:
+        instruction += f"\n\n[CRITICAL SELF-HEALING WARNING]: You have previously FAILED this exact task. Your last failed sequence of actions was: {past_failure_chain}. DO NOT repeat those exact actions! Try a different strategy, look for hidden elements, or hover over new areas."
+
     
-    with open(img_path, 'rb') as f:
+    with open('screenshot.mp4', 'rb') as f:
         img_bytes = f.read()
         
     def _call_api():
@@ -132,7 +185,7 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
                 return client.models.generate_content(
                     model=MODEL_NAME,
                     contents=[
-                        types.Part.from_bytes(data=img_bytes, mime_type='image/jpeg'),
+                        types.Part.from_bytes(data=img_bytes, mime_type='video/mp4'),
                         instruction + "\n\nUser Task: " + task_prompt
                     ]
                 )
@@ -210,13 +263,16 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
         step_count += 1
         overlay.update_ui(status_text=f"Step {step_count} CAPTURING", status_color="#f2cc60")
         
-        sct_img = pyautogui.screenshot()
-        sct_img.save('screenshot.jpg', quality=75)
+        sct_img = capture_video_buffer(duration=1.0, fps=5, filename='screenshot.mp4')
+        if sct_img is None:
+            sct_img = pyautogui.screenshot()
         
         overlay.update_ui(status_text=f"Step {step_count} VLM THINKING...", status_color="#f2cc60")
         
         try:
             mem = load_memory()
+            past_fails = load_failures()
+            past_failure_chain = past_fails.get(scenario, None)
             if scenario in mem and step_count == 1:
                 # FAST PATH: MEMORY HIT
                 raw_command = mem[scenario]
@@ -225,7 +281,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 time.sleep(1.0)
             else:
                 # NORMAL PATH: VLM INFERENCE
-                raw_command = await asyncio.wait_for(ask_vlm_next_action('screenshot.jpg', scenario, action_chain), timeout=60.0)
+                raw_command = await asyncio.wait_for(ask_vlm_next_action('screenshot.jpg', scenario, action_chain, past_failure_chain), timeout=60.0)
                 print(f"VLM RAW OUTPUT: {raw_command}")
                 
                 # Cache successful first actions
@@ -299,6 +355,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     action_chain.append("Failed-VLM")
                     overlay.update_ui(status_text="VLM GAVE UP", status_color="#ff7b72", result_text="FAILED", result_color="#ff7b72")
                     status = "FAILED"
+                    save_failure(scenario, " -> ".join(action_chain))
                     break
                     
                 elif base_command == "SCROLL_DOWN":
@@ -383,7 +440,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                         
                         pyautogui.moveTo(px, py, duration=0.2)
                         pyautogui.click()
-                        time.sleep(1) # Base safety delay for DOM updates
+                        time.sleep(0.5) # Reduced base safety delay for DOM updates
                     else:
                         action_chain.append("Failed-Parse")
                         status = "ERROR"
@@ -418,8 +475,8 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                         pyautogui.moveTo(px, py, duration=0.2)
                         pyautogui.click()
                         time.sleep(0.5)
-                        pyautogui.write(text_to_type, interval=0.05)
-                        time.sleep(1)
+                        pyautogui.write(text_to_type, interval=0.02)
+                        time.sleep(0.5)
                     else:
                         action_chain.append("Failed-Parse")
                         status = "ERROR"
@@ -479,14 +536,15 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 else:
                     action_chain.append(f"Unknown")
                     status = "FAILED"
+                    save_failure(scenario, " -> ".join(action_chain))
                     break
                     
                 # Macro-Action Safety Pause (Default fallback)
                 if status == "IN_PROGRESS" and idx < len(sub_commands) - 1:
                     next_cmd_is_wait = bool(re.search(r'WAIT\s+', sub_commands[idx+1], re.MULTILINE))
                     if base_command != "WAIT" and not next_cmd_is_wait:
-                        overlay.update_ui(status_text="MACRO-PAUSE (0.5s)...", status_color="#a78bfa")
-                        time.sleep(0.5)
+                        overlay.update_ui(status_text="MACRO-PAUSE (0.2s)...", status_color="#a78bfa")
+                        time.sleep(0.2)
                     
             # [BEHAVIORAL CLONING] Save valid command sequence to buffer
             if status == "IN_PROGRESS" and base_command != "DONE":
@@ -511,6 +569,7 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 
     if status == "IN_PROGRESS" and step_count == max_steps:
         status = "MAX_STEPS_REACHED"
+        save_failure(scenario, " -> ".join(action_chain))
         overlay.update_ui(result_text="MAX_STEPS_REACHED", result_color="#ff7b72")
 
     task_end_time = time.time()
@@ -547,6 +606,24 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 def run_batch_loop(overlay, total_batches):
     
     SCENARIO_BANK = {
+        'test_ui_1.html': {
+            'normal': [
+                "Click the Blue Circle",
+                "Click the Red Square"
+            ],
+            'difficult': [
+                "Click the Blue Circle AND then click the Red Square"
+            ]
+        },
+        'test_ui_2.html': {
+            'normal': [
+                "Switch to the Analytics tab",
+                "Click the Export Data button"
+            ],
+            'difficult': [
+                "Switch to Analytics tab AND click the Export Data button"
+            ]
+        },
         'test_ui_3.html': {
             'normal': [
                 "Select Express Shipping method",

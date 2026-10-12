@@ -1,0 +1,3 @@
+{
+    "[test_ui_4.html] Slide the verification button to the extreme right to solve the captcha": "Drag(882,552->1420,552) -> Drag(1097,596->1618,596) -> Drag(856,576->1382,576) -> Drag(1278,532->1622,532) -> Drag(1187,585->1727,594) -> Drag(975,595->1401,595) -> Drag(776,522->1180,520) -> Drag(939,539->1465,539)"
+}

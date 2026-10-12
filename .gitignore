@@ -3,14 +3,27 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Credentials and sensitive files
+# Credentials and sensitive files (STRICT PROTECTION)
 *.json
+convertionalai-*.json
 !spatial_memory.json
+!failure_logs.json
+!vlm_dataset/dataset.jsonl
 
-# Image artifacts
-*.jpg
-*.jpeg
-*.png
+# Transient screen capture artifacts (ignore root images/videos)
+/*.jpg
+/*.jpeg
+/*.png
+/*.mp4
+buffer.mp4
+live_buffer.mp4
+
+# Preserve dataset images and data
+!vlm_dataset/
+!vlm_dataset/**
+
+# Analysis generated charts (keep in repo if desired, or ignore)
+analysis_*.png
 
 # Virtual Environment
 venv/

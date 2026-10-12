@@ -1,44 +1,57 @@
-# 🤖 VLM Autonomous Testing Engine
+# VLM Autonomous Testing Engine (Native Spatial Edition)
 
-![VLM Benchmark Engine](https://img.shields.io/badge/Status-Active-brightgreen) ![Python](https://img.shields.io/badge/Language-Python%203.10+-blue) ![Gemini](https://img.shields.io/badge/Model-Gemini%202.5%20Flash-orange)
+An autonomous, zero-shot Vision-Language Model (VLM) engine that navigates complex graphical user interfaces using purely visual grounding (no DOM parsing). Powered by Gemini 2.5 Flash, it features Macro-Action Pipelining, Euclidean Jitter Detection, and a Self-Healing Memory loop.
 
-An elite, multi-step Autonomous UI Agent testing framework powered by Vision-Language Models (VLMs). This project is built to aggressively benchmark the spatial reasoning, logic, and GUI navigation capabilities of native VLMs by forcing them to interact with simulated graphical environments.
+## 🚀 How to Run
 
-## 🌟 The Vision
-The ultimate goal of this project is to create an autonomous agent that can perfectly navigate **any** graphical user interface purely through visual reasoning, without relying on DOM manipulation, HTML scraping, or browser extensions. 
-
-**"If a human can see it and click it, the AI should be able to do it too."**
-
-## 🧠 Core Architecture
-The engine is built on a custom python wrapper that orchestrates the entire test suite:
-1. **The Environments:** Custom built HTML UI layouts (`test_ui.html` - `test_ui_7.html`) featuring complex interactive elements: Drag & Drop, Captcha sliders, hidden hover menus, and sudden blocking popups.
-2. **The Overlay:** A transparent, topmost `Tkinter` window that provides a live telemetry dashboard (Task, Status, Result) directly over the active test.
-3. **The VLM Fast-Path:** Screenshots are rapidly captured via `pyautogui`, piped into Google's **Gemini 2.5 Flash** model (Vertex AI), and processed with a highly optimized System Prompt.
-4. **Action Execution:** The VLM's output (normalized 0-1000 coordinate bounding boxes) is parsed using a robust RegEx engine, mapped to the user's physical screen resolution, and executed natively via `pyautogui` mouse/keyboard commands.
-5. **Data Lake:** Every trajectory, millisecond latency, and action chain is streamed securely into a cloud database.
-
-📊 **Live Data Dashboard (Google Sheets):** [VLM Benchmark Telemetry](https://docs.google.com/spreadsheets/d/1eJ5PPHPvCbedRuLo-u1Wk9IYL6OdkJf36pzy87KuynY/edit)
-
-## 🚀 Progress & Features (Stage 1)
-We have successfully built the **Dynamics Engine (v15)**.
-- [x] **Native Spatial Coordinate System:** Zero DOM dependency. Normalized `[ymin, xmin, ymax, xmax]` bounding boxes mapped to physical OS pixels.
-- [x] **Action Arsenal:** `CLICK`, `TYPE`, `DRAG`, and `SCROLL_DOWN` supported.
-- [x] **Repetitive Action Blocking:** Hard-coded interceptors prevent the VLM from entering infinite loops.
-- [x] **Resilience Engineering:** Built-in API Rate Limit handling (429 Exponential Backoff) and bulletproof RegEx parsing for malformed VLM outputs.
-- [x] **7 Complex Test Environments:** Including Kanban boards, nested setting tabs, IDE simulators, and random popup injections.
-
-## 🔮 Next Steps: Stage 2 (Real-World Density & Tiny-ML)
-We are currently generating massive trajectory datasets to transition from API reliance to local, 0-latency execution.
-
-1. **Tiny-ML Behavioral Cloning:** We are using the collected JSON spatial memory logs to train a local Random Forest / XGBoost model. This model will act as a lightning-fast "Muscle Memory" cache—if the system recognizes a familiar UI layout, the local model will instantly execute the action, bypassing the VLM entirely.
-2. **Extreme Density Testing:** Moving away from synthetic HTML environments to real-world platforms like **Amazon** and **Gmail** to test microscopic 10px hyperlinks and overlapping carousels.
-3. **Advanced State Retention:** Implementing `COPY` and `PASTE` commands to force the VLM to maintain short-term working memory over multiple turns.
-
-## 🛠️ Usage
-Ensure you have the required credentials file (`convertionalai-d8da9e4d43dd.json`) in the root directory.
-
+### 1. Run the Synthetic HTML Benchmark (Sheet 1)
+Tests across 10 local HTML UIs (`test_ui_1.html` - `test_ui_10.html`):
 ```bash
-pip install -r requirements.txt
 python benchmark_engine.py
 ```
-> The script will prompt you for the number of test batches. Once started, sit back and watch the AI take control. **Press `ESC` to kill the engine at any time.**
+
+### 2. Run the Live Web Benchmark (Sheet 2: `Live_Web_Benchmark`)
+Autonomous testing on **live real-world websites** (Amazon, Wikipedia, YouTube, GitHub, Online Spreadsheet) equipped with pre-flight health pings, visual settling watchdogs, and F5 auto-healing:
+```bash
+python benchmark_live_engine.py
+```
+
+### 3. Generate Dual-Sheet Analytics & Comparison
+Generates side-by-side comparative charts (`Synthetic vs. Live Web` pass rates, latency distributions, and error breakdowns):
+```bash
+python analyze_results.py
+```
+
+## 💬 Developer Notes (Resuming the AI Assistant)
+**Antigravity Conversation ID**: `5a2d7f24-c796-4a5d-9566-8327e5f84d4c`
+
+To resume this exact chat context, run:
+```bash
+agy resume 5a2d7f24-c796-4a5d-9566-8327e5f84d4c
+```
+
+---
+
+## 🛠️ V2 Upgrade Implementation Plan (Scaling to the Live Web)
+
+### Phase 1: Video Inference & 3D Motion (Weeks 1-2)
+- **Goal**: Handle dynamic backgrounds (YouTube) and 3D WebGL animations.
+- **Implementation**: 
+  - Swap `pyautogui.screenshot()` with a fast screen-recording buffer (e.g., using `cv2` or `mss`).
+  - Capture exactly 1.0 second of video at 10 FPS.
+  - Modify the Vertex AI call to pass `video/mp4` instead of `image/jpeg`.
+  - Update the Meta-Prompt to instruct the VLM to calculate spatial trajectories of moving elements.
+
+### Phase 2: Live CAPTCHA Resolution (Weeks 3-4)
+- **Goal**: Natively bypass image grid CAPTCHAs (e.g., "Select all traffic lights").
+- **Implementation**:
+  - Update the `THEN` pipelining logic to allow up to 6 chained actions (instead of 3).
+  - Train the VLM to recognize CAPTCHA sub-grids and return an array of 2D coordinates for a sequential `CLICK` chain.
+  - Implement a `VERIFY_CAPTCHA` Macro-Pause to ensure the DOM loads before proceeding.
+
+### Phase 3: Advanced Self-Healing Reflection (Weeks 5-6)
+- **Goal**: Solidify the `failure_logs.json` system into a true semantic search memory.
+- **Implementation**:
+  - Instead of direct string-matching, implement local embeddings for the `scenario` descriptions.
+  - If a new task semantically matches a past failed task (e.g., "Delete email" vs "Remove message"), inject the past failure warning into the prompt to preemptively avoid mistakes.
+  - Set up a continuous offline loop to format `failure_logs.json` into a fine-tuning dataset for Behavioral Cloning.
