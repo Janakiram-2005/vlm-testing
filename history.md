@@ -49,6 +49,14 @@ Created non-destructive real-world tasks across 5 core platforms:
 * **Git Dataset Upload**: Successfully staged and pushed all 456 historical synthetic step images and dataset files to GitHub in 5 optimized chunks without hitting HTTP 408 size timeouts.
 * **Credential Protection**: Strict `.gitignore` rules preventing any leakage of `convertionalai-d8da9e4d43dd.json`.
 
+### 6. Live UI Handling & Vision Engine Overhaul
+* **Non-Intrusive Bottom HUD (`VLMOverlay`)**: Moved status bar from the top of the screen (`rely=0.02`, which blocked website search bars) to the bottom edge (`rely=0.97, anchor='s'`).
+* **Hardware Win32 Click-Through**: Applied `WS_EX_LAYERED | WS_EX_TRANSPARENT` via `ctypes.windll.user32.SetWindowLongW` so all mouse clicks pass straight through the Tkinter overlay to the browser underneath without stealing focus.
+* **Transient HUD Concealment**: Automatically hides the overlay HUD during `capture_video_buffer()` so Gemini receives 100% clean, unoccluded website captures.
+* **Native High-Resolution Vision**: Eliminated 50% image downsampling; now feeds crisp, full-resolution (1920×1200) frames to Gemini 2.5 Flash for sharp reading of 12px text, icons, and table headers.
+* **Anti-Blank Settle Watchdog**: Updated `wait_for_visual_settle` in `network_guard.py` to reject blank/uniform screens (`std < 6.0`) and enforce minimum 1.2s observation before declaring a page visually settled.
+* **Expanded Live Web Primitives**: Added `DOUBLE_CLICK` (spreadsheet cell editing), `HOVER` (dropdown menus), auto-clearing `TYPE` with `Ctrl+A`, and flexible `PRESS_ENTER`/`ENTER` support with up to 6 step budget.
+
 ---
 
 ## 🏃 Quick Command Reference

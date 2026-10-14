@@ -41,7 +41,7 @@ LIVE_JSONL_FILE = os.path.join(LIVE_DATASET_DIR, 'dataset.jsonl')
 
 GLOBAL_LIVE_TEST_ID = 1
 
-# --- Tkinter Live Visual Overlay ---
+# --- Tkinter Live Visual Overlay (Bottom HUD & Click-Through) ---
 class VLMOverlay:
     def __init__(self):
         self.root = tk.Tk()
@@ -54,23 +54,34 @@ class VLMOverlay:
         self.screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
         
-        # Status Frame
-        self.status_frame = tk.Frame(self.root, bg="#0d1117", highlightbackground="#30363d", highlightthickness=2)
-        self.status_frame.place(relx=0.5, rely=0.02, anchor='n', width=1280, height=85)
+        # Make the overlay click-through in Windows so PyAutoGUI clicks pass straight to the browser
+        try:
+            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+            if hwnd == 0:
+                hwnd = self.root.winfo_id()
+            styles = ctypes.windll.user32.GetWindowLongW(hwnd, -20)  # GWL_EXSTYLE
+            # WS_EX_LAYERED (0x80000) | WS_EX_TRANSPARENT (0x20)
+            ctypes.windll.user32.SetWindowLongW(hwnd, -20, styles | 0x80000 | 0x20)
+        except Exception:
+            pass
         
-        self.lbl_task = tk.Label(self.status_frame, text="Task: INITIALIZING LIVE ENGINE", font=("Consolas", 13, "bold"), bg='#0d1117', fg='#e1e4e8')
-        self.lbl_task.pack(pady=4)
+        # Sleek Bottom HUD Frame (Placed at bottom so it NEVER obscures search bars, tabs, or top navigation)
+        self.status_frame = tk.Frame(self.root, bg="#0d1117", highlightbackground="#30363d", highlightthickness=2)
+        self.status_frame.place(relx=0.5, rely=0.97, anchor='s', width=1100, height=62)
+        
+        self.lbl_task = tk.Label(self.status_frame, text="Task: INITIALIZING LIVE ENGINE", font=("Consolas", 11, "bold"), bg='#0d1117', fg='#e1e4e8')
+        self.lbl_task.pack(pady=2)
         
         bottom_frame = tk.Frame(self.status_frame, bg="#0d1117")
-        bottom_frame.pack(fill=tk.X, padx=20)
+        bottom_frame.pack(fill=tk.X, padx=16)
         
-        self.lbl_status = tk.Label(bottom_frame, text="Status: READY [Press ESC to Kill]", font=("Consolas", 11), bg='#0d1117', fg='#58a6ff')
+        self.lbl_status = tk.Label(bottom_frame, text="Status: READY [Press ESC to Kill]", font=("Consolas", 10), bg='#0d1117', fg='#58a6ff')
         self.lbl_status.pack(side=tk.LEFT)
         
-        self.lbl_result = tk.Label(bottom_frame, text="Result: PENDING", font=("Consolas", 11, "bold"), bg='#0d1117', fg='#f2cc60')
+        self.lbl_result = tk.Label(bottom_frame, text="Result: PENDING", font=("Consolas", 10, "bold"), bg='#0d1117', fg='#f2cc60')
         self.lbl_result.pack(side=tk.RIGHT)
         
-        self.border_frame = tk.Frame(self.root, bg="black", highlightbackground="#00f2fe", highlightthickness=10)
+        self.border_frame = tk.Frame(self.root, bg="black", highlightbackground="#00f2fe", highlightthickness=8)
         
     def update_ui(self, task_text=None, status_text=None, status_color=None, result_text=None, result_color=None):
         if task_text is not None:
@@ -81,14 +92,32 @@ class VLMOverlay:
             self.lbl_result.config(text=f"Result: {result_text}", fg=result_color if result_color else '#f2cc60')
         self.root.update()
         
+    def hide(self):
+        """Temporarily hides HUD during screen capture for 100% clean visual inspection."""
+        self.status_frame.place_forget()
+        self.root.update()
+        
+    def show(self):
+        """Restores HUD after capture completes."""
+        self.status_frame.place(relx=0.5, rely=0.97, anchor='s', width=1100, height=62)
+        self.root.update()
+
     def flash_capture_effect(self):
         self.border_frame.place(x=0, y=0, width=self.screen_width, height=self.screen_height)
         self.root.update()
-        time.sleep(0.12)
+        time.sleep(0.08)
         self.border_frame.place_forget()
         self.root.update()
 
-def capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4"):
+def capture_video_buffer(overlay=None, duration=1.0, fps=5, filename="live_buffer.mp4"):
+    """
+    Captures video buffer at full native resolution with overlay hidden
+    so the VLM receives pristine, razor-sharp visual information.
+    """
+    if overlay is not None:
+        overlay.hide()
+        time.sleep(0.05)
+        
     frames = []
     num_frames = int(duration * fps)
     last_img = None
@@ -97,7 +126,6 @@ def capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4"):
         start_time = time.time()
         try:
             img = pyautogui.screenshot()
-            img = img.resize((img.width // 2, img.height // 2))
             last_img = img
             frame = np.array(img)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -110,12 +138,15 @@ def capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4"):
         time.sleep(sleep_time)
 
     if frames:
-        height, width, layers = frames[0].shape
+        height, width, _ = frames[0].shape
         fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
         video = cv2.VideoWriter(filename, fourcc, fps, (width, height))
         for frame in frames:
             video.write(frame)
         video.release()
+        
+    if overlay is not None:
+        overlay.show()
         
     return last_img
 
@@ -159,6 +190,37 @@ def parse_type_command(sub):
         
     return None, None
 
+def extract_commands(vlm_response):
+    """
+    Robustly extracts thoughts and commands from any VLM output formatting,
+    stripping markdown bold, backticks, bullet numbers, and command prefixes.
+    """
+    lines = [l.strip() for l in vlm_response.strip().split('\n') if l.strip()]
+    thought = ""
+    command_str = ""
+    
+    for l in lines:
+        if re.match(r'^(?:\*\*)?THOUGHT(?:\*\*)?:?', l, re.IGNORECASE):
+            thought = re.sub(r'^(?:\*\*)?THOUGHT(?:\*\*)?:?\s*', '', l, flags=re.IGNORECASE).strip()
+            break
+    if not thought and lines:
+        thought = lines[0]
+        
+    for l in reversed(lines):
+        clean_l = re.sub(r'^(?:\*\*)?COMMAND(?:\*\*)?:?\s*', '', l, flags=re.IGNORECASE).strip()
+        clean_l = clean_l.strip('`* ')
+        clean_l = re.sub(r'^\d+\.\s*', '', clean_l)
+        if any(keyword in clean_l.upper() for keyword in ["CLICK", "TYPE", "PRESS", "SCROLL", "DONE", "FAILED", "WAIT", "ENTER", "HOVER"]):
+            command_str = clean_l
+            break
+            
+    if not command_str:
+        command_str = re.sub(r'^(?:\*\*)?COMMAND(?:\*\*)?:?\s*', '', lines[-1], flags=re.IGNORECASE).strip().strip('`* ')
+        
+    subs = re.split(r'\s+THEN\s+', command_str, flags=re.IGNORECASE)
+    clean_subs = [s.strip().strip('`* ') for s in subs if s.strip()]
+    return thought, command_str, clean_subs
+
 _CACHED_WORKSHEET = None
 
 def get_live_worksheet():
@@ -201,7 +263,7 @@ def log_to_live_sheet(batch_id, platform, scenario, page_load_ms, vlm_latency_ms
             return
         except Exception as e:
             print(f"[DATABASE WARN] Attempt {attempt} failed: {e}")
-            _CACHED_WORKSHEET = None # Reset session on connection error
+            _CACHED_WORKSHEET = None
             time.sleep(2)
 
 async def ask_vlm_live_action(task_prompt, previous_actions):
@@ -216,16 +278,20 @@ async def ask_vlm_live_action(task_prompt, previous_actions):
         "You have native spatial understanding. To interact with an element, output its 2D bounding box in normalized [ymin, xmin, ymax, xmax] format (0-1000 scale).\n\n"
         "PRIORITY 0 (MODAL & COOKIE DISMISSAL):\n"
         "- If a cookie consent banner, location dialog ('Deliver to...'), or promotional overlay obstructs the page, click its Dismiss / Close / 'Accept All' button first.\n\n"
+        "MACRO PLANNING:\n"
+        "- You may chain up to 3 commands using ' THEN ' (e.g. 'CLICK [coords] THEN TYPE text THEN PRESS_ENTER').\n\n"
         "You MUST reply in exactly TWO lines:\n"
         "1. A THOUGHT line starting with 'THOUGHT: ' explaining what you see, what you did previously, and your next step.\n"
-        "2. The COMMAND line with exactly ONE command (or up to 2 chained with ' THEN '):\n"
+        "2. The COMMAND line with your action(s):\n"
         "   - CLICK [ymin, xmin, ymax, xmax]\n"
+        "   - DOUBLE_CLICK [ymin, xmin, ymax, xmax] (For spreadsheet cells or text selection)\n"
         "   - TYPE [ymin, xmin, ymax, xmax] <TEXT>\n"
-        "   - PRESS_ENTER (Hits Enter on keyboard)\n"
+        "   - PRESS_ENTER (Hits Enter on keyboard to submit search)\n"
+        "   - HOVER [ymin, xmin, ymax, xmax] (To reveal hidden dropdowns/menus)\n"
         "   - SCROLL DOWN (Use if the target is below the current viewport)\n"
         "   - SCROLL UP (Use to scroll back up)\n"
         "   - WAIT [seconds] (e.g. WAIT 1.0 - Use between actions for page load)\n"
-        "   - DONE (If the goal is visually achieved)\n"
+        "   - DONE (CRITICAL: When the goal is visibly achieved, output DONE immediately)\n"
         "   - FAILED (If stuck or target element does not exist)\n\n"
         f"Previous Action History: {chain_history}"
     )
@@ -261,7 +327,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
     vlm_total_latency_ms = 0.0
     action_chain = []
     trajectory_buffer = []
-    max_steps = 4
+    max_steps = 6  # Ample step budget for real web workflows
     status = "FAILED"
     error_type = "AI_SPATIAL_MISS"
     
@@ -270,7 +336,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
     for step in range(1, max_steps + 1):
         overlay.update_ui(status_text=f"STEP {step}/{max_steps}: CAPTURING LIVE BUFFER...", status_color="#58a6ff")
         overlay.flash_capture_effect()
-        captured_pil = capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4")
+        captured_pil = capture_video_buffer(overlay=overlay, duration=1.0, fps=5, filename="live_buffer.mp4")
         
         overlay.update_ui(status_text=f"STEP {step}/{max_steps}: GEMINI 2.5 FLASH INFERENCE...", status_color="#db61a2")
         vlm_t0 = time.time()
@@ -285,66 +351,81 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
             error_type = "API_INFERENCE_ERROR"
             break
             
-        lines = [line.strip() for line in vlm_response.strip().split('\n') if line.strip()]
-        thought_line = lines[0] if len(lines) > 0 else ""
-        command_line = lines[1] if len(lines) > 1 else lines[0]
-        
-        sub_commands = command_line.split(" THEN ")
+        thought_line, full_command, sub_commands = extract_commands(vlm_response)
         step_done = False
         
         for sub in sub_commands:
             sub = sub.strip()
             action_chain.append(sub)
+            sub_upper = sub.upper()
             
-            if "DONE" in sub:
+            if "DONE" in sub_upper:
                 status = "PASSED"
                 error_type = "NONE"
                 step_done = True
                 break
-            elif "FAILED" in sub:
+            elif "FAILED" in sub_upper:
                 status = "FAILED"
                 error_type = "AI_ABORTED"
                 step_done = True
                 break
-            elif "SCROLL DOWN" in sub:
+            elif "SCROLL DOWN" in sub_upper:
                 overlay.update_ui(status_text="ACTION: SCROLL DOWN", status_color="#3fb950")
                 pyautogui.scroll(-550)
                 time.sleep(1.0)
-            elif "SCROLL UP" in sub:
+            elif "SCROLL UP" in sub_upper:
                 overlay.update_ui(status_text="ACTION: SCROLL UP", status_color="#3fb950")
                 pyautogui.scroll(550)
                 time.sleep(1.0)
-            elif "PRESS_ENTER" in sub:
+            elif any(k in sub_upper for k in ["PRESS_ENTER", "PRESS ENTER", "HIT ENTER"]) or sub_upper == "ENTER":
                 overlay.update_ui(status_text="ACTION: PRESS ENTER", status_color="#3fb950")
                 pyautogui.press('enter')
                 time.sleep(1.2)
-            elif "CLICK" in sub:
+            elif "DOUBLE_CLICK" in sub_upper:
+                px, py = extract_coords_from_array(sub, screen_w, screen_h)
+                if px is not None and py is not None:
+                    overlay.update_ui(status_text=f"ACTION: DOUBLE_CLICK ({px}, {py})", status_color="#3fb950")
+                    pyautogui.moveTo(px, py, duration=0.25, tween=pyautogui.easeInOutQuad)
+                    pyautogui.doubleClick()
+                    time.sleep(0.8)
+            elif "HOVER" in sub_upper:
+                px, py = extract_coords_from_array(sub, screen_w, screen_h)
+                if px is not None and py is not None:
+                    overlay.update_ui(status_text=f"ACTION: HOVER ({px}, {py})", status_color="#3fb950")
+                    pyautogui.moveTo(px, py, duration=0.3, tween=pyautogui.easeInOutQuad)
+                    time.sleep(0.8)
+            elif "CLICK" in sub_upper:
                 px, py = extract_coords_from_array(sub, screen_w, screen_h)
                 if px is not None and py is not None:
                     overlay.update_ui(status_text=f"ACTION: CLICK ({px}, {py})", status_color="#3fb950")
-                    pyautogui.moveTo(px, py, duration=0.35, tween=pyautogui.easeInOutQuad)
+                    pyautogui.moveTo(px, py, duration=0.25, tween=pyautogui.easeInOutQuad)
                     pyautogui.click()
-                    time.sleep(1.0)
-            elif "TYPE" in sub:
+                    time.sleep(0.8)
+            elif "TYPE" in sub_upper:
                 coord_str, text_to_type = parse_type_command(sub)
                 if coord_str is not None and text_to_type is not None:
                     px, py = extract_coords_from_array(coord_str, screen_w, screen_h)
                     if px is not None and py is not None:
                         overlay.update_ui(status_text=f"ACTION: TYPE '{text_to_type}'", status_color="#3fb950")
-                        pyautogui.moveTo(px, py, duration=0.3)
+                        pyautogui.moveTo(px, py, duration=0.25)
                         pyautogui.click()
-                        time.sleep(0.3)
-                        pyautogui.write(text_to_type, interval=0.04)
+                        time.sleep(0.2)
+                        # Clear old placeholder/previous search input cleanly
+                        pyautogui.hotkey('ctrl', 'a')
+                        time.sleep(0.1)
+                        pyautogui.write(text_to_type, interval=0.03)
                         time.sleep(0.5)
-            elif "WAIT" in sub:
-                time.sleep(1.0)
+            elif "WAIT" in sub_upper:
+                wait_match = re.search(r'\d+(?:\.\d+)?', sub)
+                sec = float(wait_match.group(0)) if wait_match else 1.0
+                time.sleep(sec)
                 
         # [BEHAVIORAL CLONING] Buffer trajectory frame
-        if captured_pil is not None and "DONE" not in command_line:
+        if captured_pil is not None and "DONE" not in full_command.upper():
             trajectory_buffer.append({
                 "step": step,
                 "image": captured_pil,
-                "action_label": command_line,
+                "action_label": full_command,
                 "history": list(action_chain)
             })
             
@@ -363,7 +444,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
             for item in trajectory_buffer:
                 img_filename = f"{run_id}_step_{item['step']}.jpg"
                 img_path = os.path.join(LIVE_IMAGES_DIR, img_filename)
-                item['image'].save(img_path, quality=85)
+                item['image'].save(img_path, quality=90)
                 record = {
                     "image_file": img_filename,
                     "platform": platform,
@@ -385,6 +466,7 @@ def run_live_batch_loop(overlay, total_batches):
             time.sleep(1)
             
         platforms = list(LIVE_SCENARIO_BANK.keys())
+        screen_w, screen_h = overlay.screen_width, overlay.screen_height
         
         for batch_number in range(1, total_batches + 1):
             platform = random.choice(platforms)
@@ -405,18 +487,23 @@ def run_live_batch_loop(overlay, total_batches):
             # Step 2: Launch URL and normalize window
             overlay.update_ui(status_text=f"OPENING {url}...", status_color="#58a6ff")
             webbrowser.open(url)
-            time.sleep(1.5)
-            # Maximize browser window
+            time.sleep(1.8)
+            
+            # Maximize browser window & focus viewport
             try:
                 pyautogui.hotkey('win', 'up')
             except Exception:
                 pass
+            time.sleep(0.5)
+            # Give browser physical focus click in middle viewport
+            pyautogui.click(screen_w // 2, 240)
+            time.sleep(0.5)
                 
             # Step 3: Adaptive Visual Settling Watchdog
             overlay.update_ui(status_text="WATCHDOG: WAITING FOR PAGE VISUAL SETTLE...", status_color="#58a6ff")
             settled, page_load_ms = wait_for_visual_settle(max_timeout=7.0)
             if not settled:
-                print("[WATCHDOG WARN] Visual variance high. Attempting F5 self-healing...")
+                print("[WATCHDOG WARN] Visual variance high or blank. Attempting F5 self-healing...")
                 trigger_f5_recovery()
                 settled, extra_ms = wait_for_visual_settle(max_timeout=5.0)
                 page_load_ms += extra_ms
