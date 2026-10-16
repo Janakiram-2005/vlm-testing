@@ -31,7 +31,8 @@ pyautogui.FAILSAFE = False
 
 DEBUG_MODE = True
 # Default to Gemini 3.6 Flash on Global Endpoint
-MODEL_NAME = os.environ.get('VLM_MODEL_NAME', 'gemini-3.6-flash')
+_env_model = os.environ.get('VLM_MODEL_NAME', 'gemini-3.6-flash')
+MODEL_NAME = 'gemini-3.6-flash' if _env_model in ['gemini-2.5-flash', 'gemini-3.5-flash', ''] else _env_model
 VERTEX_LOCATION = os.environ.get('VERTEX_LOCATION', 'global')
 SPREADSHEET_ID = '1eJ5PPHPvCbedRuLo-u1Wk9IYL6OdkJf36pzy87KuynY'
 WORKSHEET_NAME = 'Live_Web_Benchmark'
@@ -43,7 +44,7 @@ LIVE_JSONL_FILE = os.path.join(LIVE_DATASET_DIR, 'dataset.jsonl')
 
 GLOBAL_LIVE_TEST_ID = 1
 
-# --- Tkinter Live Visual Overlay (Prominent Info Bar & Click-Through) ---
+# --- Tkinter Live Visual Overlay (Prominent Info Bar) ---
 class VLMOverlay:
     def __init__(self):
         self.root = tk.Tk()
@@ -56,18 +57,7 @@ class VLMOverlay:
         self.screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
         
-        # Make the overlay click-through in Windows so clicks pass straight to the browser
-        try:
-            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
-            if hwnd == 0:
-                hwnd = self.root.winfo_id()
-            styles = ctypes.windll.user32.GetWindowLongW(hwnd, -20)  # GWL_EXSTYLE
-            # WS_EX_LAYERED (0x80000) | WS_EX_TRANSPARENT (0x20)
-            ctypes.windll.user32.SetWindowLongW(hwnd, -20, styles | 0x80000 | 0x20)
-        except Exception:
-            pass
-        
-        # Prominent Live Info Display Bar (Kept permanently visible at top of screen)
+        # Prominent Live Info Display Bar (Rendered visibly at top of screen)
         self.status_frame = tk.Frame(self.root, bg="#0d1117", highlightbackground="#30363d", highlightthickness=2)
         self.status_frame.place(relx=0.5, rely=0.015, anchor='n', width=1280, height=82)
         
@@ -87,6 +77,7 @@ class VLMOverlay:
         self.lbl_result.pack(side=tk.RIGHT)
         
         self.border_frame = tk.Frame(self.root, bg="black", highlightbackground="#00f2fe", highlightthickness=10)
+        self.root.update()
         
     def update_ui(self, task_text=None, status_text=None, status_color=None, result_text=None, result_color=None, model_text=None):
         if task_text is not None:
@@ -184,8 +175,15 @@ def extract_commands(vlm_response):
     """
     Robustly extracts thoughts and commands from any VLM output formatting,
     stripping markdown bold, backticks, bullet numbers, and command prefixes.
+    Guards against empty responses to prevent IndexError.
     """
+    if not vlm_response or not vlm_response.strip():
+        return "Analyzing current screen state.", "WAIT 1.0", ["WAIT 1.0"]
+
     lines = [l.strip() for l in vlm_response.strip().split('\n') if l.strip()]
+    if not lines:
+        return "Analyzing current screen state.", "WAIT 1.0", ["WAIT 1.0"]
+        
     thought = ""
     command_str = ""
     
@@ -205,10 +203,15 @@ def extract_commands(vlm_response):
             break
             
     if not command_str:
-        command_str = re.sub(r'^(?:\*\*)?COMMAND(?:\*\*)?:?\s*', '', lines[-1], flags=re.IGNORECASE).strip().strip('`* ')
+        if lines:
+            command_str = re.sub(r'^(?:\*\*)?COMMAND(?:\*\*)?:?\s*', '', lines[-1], flags=re.IGNORECASE).strip().strip('`* ')
+        else:
+            command_str = "WAIT 1.0"
         
     subs = re.split(r'\s+THEN\s+', command_str, flags=re.IGNORECASE)
     clean_subs = [s.strip().strip('`* ') for s in subs if s.strip()]
+    if not clean_subs:
+        clean_subs = ["WAIT 1.0"]
     return thought, command_str, clean_subs
 
 _CACHED_WORKSHEET = None
@@ -309,7 +312,18 @@ async def ask_vlm_live_action(task_prompt, previous_actions):
                     
     loop = asyncio.get_running_loop()
     response = await loop.run_in_executor(None, _call_api)
-    return response.text
+    raw_text = response.text if (response and response.text) else ""
+    if not raw_text.strip():
+        try:
+            if response and response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        raw_text += part.text
+        except Exception:
+            pass
+    if not raw_text.strip():
+        raw_text = "THOUGHT: Analyzing current screen state.\nCOMMAND: WAIT 1.0"
+    return raw_text
 
 async def execute_live_test(overlay, batch_id, platform, url, scenario, page_load_ms):
     overlay.update_ui(task_text=f"[{platform}] {scenario}", status_text="RUNNING LIVE SPATIAL TEST...", status_color="#58a6ff", result_text="PENDING", result_color="#f2cc60")
@@ -475,20 +489,10 @@ def run_live_batch_loop(overlay, total_batches):
                 time.sleep(2)
                 continue
                 
-            # Step 2: Launch URL and normalize window
+            # Step 2: Launch URL cleanly without snapping or artificial clicks
             overlay.update_ui(status_text=f"OPENING {url}...", status_color="#58a6ff")
             webbrowser.open(url)
-            time.sleep(1.8)
-            
-            # Maximize browser window & focus viewport
-            try:
-                pyautogui.hotkey('win', 'up')
-            except Exception:
-                pass
-            time.sleep(0.5)
-            # Give browser physical focus click in middle viewport
-            pyautogui.click(screen_w // 2, 240)
-            time.sleep(0.5)
+            time.sleep(3.0)
                 
             # Step 3: Adaptive Visual Settling Watchdog
             overlay.update_ui(status_text="WATCHDOG: WAITING FOR PAGE VISUAL SETTLE...", status_color="#58a6ff")
