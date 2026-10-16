@@ -59,7 +59,12 @@ Created non-destructive real-world tasks across 5 core platforms:
 
 ### 7. Google GenAI SDK Upgrade & Multi-Region Global Endpoint
 * **SDK Upgrade**: Upgraded to `google-genai` v2.30.1 and `google-cloud-aiplatform` v2.5.0 to support latest GenAI capabilities and Enterprise Agent Platform models.
-* **Global Endpoint Routing**: Configured Vertex AI to target `location='global'` (with `VERTEX_LOCATION` env override) enabling support for higher-tier models (Gemini 2.5 Pro/Flash, Gemini 3 preview models).
+* **Global Endpoint Routing**: Configured Vertex AI to target `location='global'` (with `VERTEX_LOCATION` env override) enabling support for higher-tier models (Gemini 2.5 Pro/Flash, Gemini 3.5, 3.6, 3.7, 3.8 preview models).
+* **Model Availability Verified**:
+  - `gemini-3.5-flash`: **AVAILABLE & ACTIVE** (Verified on `global`, supports text + multimodal vision).
+  - `gemini-3.6-flash`: **AVAILABLE & ACTIVE** (Verified on `global`, supports text + multimodal vision).
+  - `gemini-3.7-flash` & `gemini-3.8-flash`: **AVAILABLE & ACTIVE** on `global`.
+  - Regional endpoints like `us-central1` return `404 NOT_FOUND` for 3.5+ models; explicitly routing to `global` is mandatory and now implemented.
 * **Automated Batch Execution**: Added `--all` and integer argument support to `benchmark_live_engine.py` (e.g., `python benchmark_live_engine.py --all`), cycling systematically across all 5 live platforms.
 
 ---
