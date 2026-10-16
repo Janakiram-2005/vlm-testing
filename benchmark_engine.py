@@ -62,7 +62,7 @@ except Exception:
 pyautogui.FAILSAFE = False
 
 DEBUG_MODE = True
-MODEL_NAME = 'gemini-2.5-flash'  # High-speed multi-step model
+MODEL_NAME = os.environ.get('VLM_MODEL_NAME', 'gemini-3.6-flash')  # Next-gen spatial reasoning model
 
 class VLMOverlay:
     def __init__(self):

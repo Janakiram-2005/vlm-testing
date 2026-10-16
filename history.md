@@ -57,15 +57,14 @@ Created non-destructive real-world tasks across 5 core platforms:
 * **Anti-Blank Settle Watchdog**: Updated `wait_for_visual_settle` in `network_guard.py` to reject blank/uniform screens (`std < 6.0`) and enforce minimum 1.2s observation before declaring a page visually settled.
 * **Expanded Live Web Primitives**: Added `DOUBLE_CLICK` (spreadsheet cell editing), `HOVER` (dropdown menus), auto-clearing `TYPE` with `Ctrl+A`, and flexible `PRESS_ENTER`/`ENTER` support with up to 6 step budget.
 
-### 7. Google GenAI SDK Upgrade & Multi-Region Global Endpoint
-* **SDK Upgrade**: Upgraded to `google-genai` v2.30.1 and `google-cloud-aiplatform` v2.5.0 to support latest GenAI capabilities and Enterprise Agent Platform models.
-* **Global Endpoint Routing**: Configured Vertex AI to target `location='global'` (with `VERTEX_LOCATION` env override) enabling support for higher-tier models (Gemini 2.5 Pro/Flash, Gemini 3.5, 3.6, 3.7, 3.8 preview models).
-* **Model Availability Verified**:
-  - `gemini-3.5-flash`: **AVAILABLE & ACTIVE** (Verified on `global`, supports text + multimodal vision).
-  - `gemini-3.6-flash`: **AVAILABLE & ACTIVE** (Verified on `global`, supports text + multimodal vision).
-  - `gemini-3.7-flash` & `gemini-3.8-flash`: **AVAILABLE & ACTIVE** on `global`.
-  - Regional endpoints like `us-central1` return `404 NOT_FOUND` for 3.5+ models; explicitly routing to `global` is mandatory and now implemented.
-* **Automated Batch Execution**: Added `--all` and integer argument support to `benchmark_live_engine.py` (e.g., `python benchmark_live_engine.py --all`), cycling systematically across all 5 live platforms.
+### 8. Gemini 3.6 Flash Integration & Permanent Live Info HUD
+* **Default Model Updated to `gemini-3.6-flash`**: Set both `benchmark_live_engine.py` and `benchmark_engine.py` to default to `gemini-3.6-flash` on the `global` Vertex AI endpoint. Verified sub-second multimodal video spatial reasoning.
+* **Permanent Live Info Display Bar**:
+  - Restored the prominent, beautiful HUD at the top center of the screen (`relx=0.5, rely=0.015, anchor='n', width=1280, height=82`).
+  - Contains real-time telemetry: **Task**, **Status & Progress**, **Active Model (`GEMINI 3.6 FLASH`)**, and **Result (`PENDING / PASSED / FAILED`)**.
+  - Removed temporary concealment so the info bar stays permanently visible without blinking or vanishing during screen buffer captures.
+  - Retained hardware `WS_EX_LAYERED | WS_EX_TRANSPARENT` click-through styling so all clicks pass straight through to the browser underneath without window focus theft.
+* **Full Integration Verified**: Screen video buffer streaming, coordinate extraction, action chaining, and Sheet 2 logging verified end-to-end.
 
 ---
 

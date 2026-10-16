@@ -30,8 +30,9 @@ except Exception:
 pyautogui.FAILSAFE = False
 
 DEBUG_MODE = True
-MODEL_NAME = os.environ.get('VLM_MODEL_NAME', 'gemini-2.5-flash')
-VERTEX_LOCATION = os.environ.get('VERTEX_LOCATION', 'global') # Targets global/multi-region endpoint for Gemini 2.5/3.x+ models
+# Default to Gemini 3.6 Flash on Global Endpoint
+MODEL_NAME = os.environ.get('VLM_MODEL_NAME', 'gemini-3.6-flash')
+VERTEX_LOCATION = os.environ.get('VERTEX_LOCATION', 'global')
 SPREADSHEET_ID = '1eJ5PPHPvCbedRuLo-u1Wk9IYL6OdkJf36pzy87KuynY'
 WORKSHEET_NAME = 'Live_Web_Benchmark'
 
@@ -42,7 +43,7 @@ LIVE_JSONL_FILE = os.path.join(LIVE_DATASET_DIR, 'dataset.jsonl')
 
 GLOBAL_LIVE_TEST_ID = 1
 
-# --- Tkinter Live Visual Overlay (Bottom HUD & Click-Through) ---
+# --- Tkinter Live Visual Overlay (Prominent Info Bar & Click-Through) ---
 class VLMOverlay:
     def __init__(self):
         self.root = tk.Tk()
@@ -55,7 +56,7 @@ class VLMOverlay:
         self.screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
         
-        # Make the overlay click-through in Windows so PyAutoGUI clicks pass straight to the browser
+        # Make the overlay click-through in Windows so clicks pass straight to the browser
         try:
             hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
             if hwnd == 0:
@@ -66,59 +67,50 @@ class VLMOverlay:
         except Exception:
             pass
         
-        # Sleek Bottom HUD Frame (Placed at bottom so it NEVER obscures search bars, tabs, or top navigation)
+        # Prominent Live Info Display Bar (Kept permanently visible at top of screen)
         self.status_frame = tk.Frame(self.root, bg="#0d1117", highlightbackground="#30363d", highlightthickness=2)
-        self.status_frame.place(relx=0.5, rely=0.97, anchor='s', width=1100, height=62)
+        self.status_frame.place(relx=0.5, rely=0.015, anchor='n', width=1280, height=82)
         
-        self.lbl_task = tk.Label(self.status_frame, text="Task: INITIALIZING LIVE ENGINE", font=("Consolas", 11, "bold"), bg='#0d1117', fg='#e1e4e8')
-        self.lbl_task.pack(pady=2)
+        self.lbl_task = tk.Label(self.status_frame, text="Task: INITIALIZING LIVE ENGINE", font=("Consolas", 13, "bold"), bg='#0d1117', fg='#e1e4e8')
+        self.lbl_task.pack(pady=3)
         
         bottom_frame = tk.Frame(self.status_frame, bg="#0d1117")
-        bottom_frame.pack(fill=tk.X, padx=16)
+        bottom_frame.pack(fill=tk.X, padx=20)
         
-        self.lbl_status = tk.Label(bottom_frame, text="Status: READY [Press ESC to Kill]", font=("Consolas", 10), bg='#0d1117', fg='#58a6ff')
+        self.lbl_status = tk.Label(bottom_frame, text="Status: READY [Press ESC to Kill]", font=("Consolas", 11), bg='#0d1117', fg='#58a6ff')
         self.lbl_status.pack(side=tk.LEFT)
         
-        self.lbl_result = tk.Label(bottom_frame, text="Result: PENDING", font=("Consolas", 10, "bold"), bg='#0d1117', fg='#f2cc60')
+        self.lbl_model = tk.Label(bottom_frame, text=f"Model: {MODEL_NAME.upper()} ({VERTEX_LOCATION.upper()})", font=("Consolas", 10, "bold"), bg='#0d1117', fg='#a78bfa')
+        self.lbl_model.pack(side=tk.LEFT, padx=30)
+        
+        self.lbl_result = tk.Label(bottom_frame, text="Result: PENDING", font=("Consolas", 11, "bold"), bg='#0d1117', fg='#f2cc60')
         self.lbl_result.pack(side=tk.RIGHT)
         
-        self.border_frame = tk.Frame(self.root, bg="black", highlightbackground="#00f2fe", highlightthickness=8)
+        self.border_frame = tk.Frame(self.root, bg="black", highlightbackground="#00f2fe", highlightthickness=10)
         
-    def update_ui(self, task_text=None, status_text=None, status_color=None, result_text=None, result_color=None):
+    def update_ui(self, task_text=None, status_text=None, status_color=None, result_text=None, result_color=None, model_text=None):
         if task_text is not None:
             self.lbl_task.config(text=f"Task: {task_text}")
         if status_text is not None:
             self.lbl_status.config(text=f"Status: {status_text} [Press ESC to Kill]", fg=status_color if status_color else '#58a6ff')
         if result_text is not None:
             self.lbl_result.config(text=f"Result: {result_text}", fg=result_color if result_color else '#f2cc60')
-        self.root.update()
-        
-    def hide(self):
-        """Temporarily hides HUD during screen capture for 100% clean visual inspection."""
-        self.status_frame.place_forget()
-        self.root.update()
-        
-    def show(self):
-        """Restores HUD after capture completes."""
-        self.status_frame.place(relx=0.5, rely=0.97, anchor='s', width=1100, height=62)
+        if model_text is not None:
+            self.lbl_model.config(text=f"Model: {model_text}")
         self.root.update()
 
     def flash_capture_effect(self):
         self.border_frame.place(x=0, y=0, width=self.screen_width, height=self.screen_height)
         self.root.update()
-        time.sleep(0.08)
+        time.sleep(0.10)
         self.border_frame.place_forget()
         self.root.update()
 
-def capture_video_buffer(overlay=None, duration=1.0, fps=5, filename="live_buffer.mp4"):
+def capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4"):
     """
-    Captures video buffer at full native resolution with overlay hidden
-    so the VLM receives pristine, razor-sharp visual information.
+    Captures video buffer at full native resolution with live display bar kept visible,
+    giving the user continuous real-time feedback and Gemini razor-sharp visual information.
     """
-    if overlay is not None:
-        overlay.hide()
-        time.sleep(0.05)
-        
     frames = []
     num_frames = int(duration * fps)
     last_img = None
@@ -145,9 +137,6 @@ def capture_video_buffer(overlay=None, duration=1.0, fps=5, filename="live_buffe
         for frame in frames:
             video.write(frame)
         video.release()
-        
-    if overlay is not None:
-        overlay.show()
         
     return last_img
 
@@ -277,6 +266,7 @@ async def ask_vlm_live_action(task_prompt, previous_actions):
         "You are an elite Autonomous UI Agent operating on LIVE real-world websites. "
         "Analyze the 1-second video buffer of the screen to identify elements, visual layout shifts, and dynamic states. "
         "You have native spatial understanding. To interact with an element, output its 2D bounding box in normalized [ymin, xmin, ymax, xmax] format (0-1000 scale).\n\n"
+        "NOTE: The top banner contains agent HUD telemetry (Task, Status, Model). Ignore it and interact with the target webpage underneath.\n\n"
         "PRIORITY 0 (MODAL & COOKIE DISMISSAL):\n"
         "- If a cookie consent banner, location dialog ('Deliver to...'), or promotional overlay obstructs the page, click its Dismiss / Close / 'Accept All' button first.\n\n"
         "MACRO PLANNING:\n"
@@ -337,9 +327,9 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
     for step in range(1, max_steps + 1):
         overlay.update_ui(status_text=f"STEP {step}/{max_steps}: CAPTURING LIVE BUFFER...", status_color="#58a6ff")
         overlay.flash_capture_effect()
-        captured_pil = capture_video_buffer(overlay=overlay, duration=1.0, fps=5, filename="live_buffer.mp4")
+        captured_pil = capture_video_buffer(duration=1.0, fps=5, filename="live_buffer.mp4")
         
-        overlay.update_ui(status_text=f"STEP {step}/{max_steps}: GEMINI 2.5 FLASH INFERENCE...", status_color="#db61a2")
+        overlay.update_ui(status_text=f"STEP {step}/{max_steps}: {MODEL_NAME.upper()} INFERENCE...", status_color="#db61a2")
         vlm_t0 = time.time()
         
         try:
@@ -534,6 +524,7 @@ def run_live_batch_loop(overlay, total_batches):
 if __name__ == "__main__":
     print("==================================================")
     print("🌐 VLM AUTONOMOUS LIVE WEB BENCHMARK ENGINE")
+    print(f"Active Model: {MODEL_NAME} ({VERTEX_LOCATION})")
     print("Targeting: Amazon, Google Sheets Sandbox, YouTube, Wikipedia, GitHub")
     print("Telemetry: Logging to 'Live_Web_Benchmark' (Sheet 2)")
     print("Resilience: Pre-flight Ping + Visual Settling Watchdog + F5 Healing")
