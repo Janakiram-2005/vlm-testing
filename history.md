@@ -66,15 +66,29 @@ Created non-destructive real-world tasks across 5 core platforms:
   - Retained hardware `WS_EX_LAYERED | WS_EX_TRANSPARENT` click-through styling so all clicks pass straight through to the browser underneath without window focus theft.
 * **Full Integration Verified**: Screen video buffer streaming, coordinate extraction, action chaining, and Sheet 2 logging verified end-to-end.
 
+### 9. HealVLM: Active Self-Healing & Publication Strategy
+* **Addressed Compounding Error / Distribution Shift**: Formulated the DAgger Teacher-Student framework to overcome the "Happy Path" flaw in standard Behavioral Cloning.
+* **Defined 5 Academic Evaluation Metrics**:
+  1. *Autonomy Score* ($1 - \text{Intervention Rate}$)
+  2. *Click Hit Rate ($HR_{\text{bbox}}$)*
+  3. *Failure Recovery Rate (FRR)*
+  4. *Action Verb Accuracy*
+  5. *Task Success Rate (SR)*
+* **Zero-Risk Pre-Validation & Headless Cloud Training**:
+  - Outlined dry-run validation (`validate_training_pipeline.py`) on simple data to catch shape and tokenizer issues before cloud execution.
+  - Offloaded 4-bit QLoRA training of Qwen2-VL-2B to Kaggle's free T4 GPU, allowing laptop shutdown during execution.
+* **Documented in Master Plan**: Generated [`HEALVLM_RESEARCH_AND_IMPLEMENTATION_PLAN.md`](file:///c:/Users/msjan/Desktop/VLM%20TESTING/HEALVLM_RESEARCH_AND_IMPLEMENTATION_PLAN.md).
+
 ---
 
 ## 🏃 Quick Command Reference
 
 | Action | Command |
 | :--- | :--- |
-| **Run Live Web Benchmark** | `python benchmark_live_engine.py` |
+| **Run 20 Live Web Batches** | `python benchmark_live_engine.py 20` |
+| **Run All Live Web Platforms** | `python benchmark_live_engine.py --all` |
 | **Run Synthetic HTML Benchmark** | `python benchmark_engine.py` |
 | **Generate Comparative Analytics** | `python analyze_results.py` |
-| **Train Behavioral Cloning Model** | `python train_tiny_ml.py` |
+| **View Master Research & Implementation Plan** | [`HEALVLM_RESEARCH_AND_IMPLEMENTATION_PLAN.md`](file:///c:/Users/msjan/Desktop/VLM%20TESTING/HEALVLM_RESEARCH_AND_IMPLEMENTATION_PLAN.md) |
 | **Re-Initialize Sheet 2** | `python setup_sheet2.py` |
-| **Resume AI Assistant** | `agy resume 5a2d7f24-c796-4a5d-9566-8327e5f84d4c` |
+
