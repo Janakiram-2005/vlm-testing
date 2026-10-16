@@ -57,6 +57,11 @@ Created non-destructive real-world tasks across 5 core platforms:
 * **Anti-Blank Settle Watchdog**: Updated `wait_for_visual_settle` in `network_guard.py` to reject blank/uniform screens (`std < 6.0`) and enforce minimum 1.2s observation before declaring a page visually settled.
 * **Expanded Live Web Primitives**: Added `DOUBLE_CLICK` (spreadsheet cell editing), `HOVER` (dropdown menus), auto-clearing `TYPE` with `Ctrl+A`, and flexible `PRESS_ENTER`/`ENTER` support with up to 6 step budget.
 
+### 7. Google GenAI SDK Upgrade & Multi-Region Global Endpoint
+* **SDK Upgrade**: Upgraded to `google-genai` v2.30.1 and `google-cloud-aiplatform` v2.5.0 to support latest GenAI capabilities and Enterprise Agent Platform models.
+* **Global Endpoint Routing**: Configured Vertex AI to target `location='global'` (with `VERTEX_LOCATION` env override) enabling support for higher-tier models (Gemini 2.5 Pro/Flash, Gemini 3 preview models).
+* **Automated Batch Execution**: Added `--all` and integer argument support to `benchmark_live_engine.py` (e.g., `python benchmark_live_engine.py --all`), cycling systematically across all 5 live platforms.
+
 ---
 
 ## 🏃 Quick Command Reference

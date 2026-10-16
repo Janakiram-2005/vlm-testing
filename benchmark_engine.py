@@ -144,7 +144,8 @@ def capture_video_buffer(duration=1.0, fps=5, filename="buffer.mp4"):
 
 async def ask_vlm_next_action(img_path, task_prompt, previous_actions, past_failure_chain=None):
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'convertionalai-d8da9e4d43dd.json'
-    client = genai.Client(vertexai=True, project='convertionalai', location='us-central1')
+    loc = os.environ.get('VERTEX_LOCATION', 'global')
+    client = genai.Client(vertexai=True, project='convertionalai', location=loc)
     
     chain_history = " -> ".join(previous_actions) if previous_actions else "None"
     

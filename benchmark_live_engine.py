@@ -30,7 +30,8 @@ except Exception:
 pyautogui.FAILSAFE = False
 
 DEBUG_MODE = True
-MODEL_NAME = 'gemini-2.5-flash'
+MODEL_NAME = os.environ.get('VLM_MODEL_NAME', 'gemini-2.5-flash')
+VERTEX_LOCATION = os.environ.get('VERTEX_LOCATION', 'global') # Targets global/multi-region endpoint for Gemini 2.5/3.x+ models
 SPREADSHEET_ID = '1eJ5PPHPvCbedRuLo-u1Wk9IYL6OdkJf36pzy87KuynY'
 WORKSHEET_NAME = 'Live_Web_Benchmark'
 
@@ -268,7 +269,7 @@ def log_to_live_sheet(batch_id, platform, scenario, page_load_ms, vlm_latency_ms
 
 async def ask_vlm_live_action(task_prompt, previous_actions):
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'convertionalai-d8da9e4d43dd.json'
-    client = genai.Client(vertexai=True, project='convertionalai', location='us-central1')
+    client = genai.Client(vertexai=True, project='convertionalai', location=VERTEX_LOCATION)
     
     chain_history = " -> ".join(previous_actions) if previous_actions else "None"
     
@@ -469,7 +470,7 @@ def run_live_batch_loop(overlay, total_batches):
         screen_w, screen_h = overlay.screen_width, overlay.screen_height
         
         for batch_number in range(1, total_batches + 1):
-            platform = random.choice(platforms)
+            platform = platforms[(batch_number - 1) % len(platforms)]
             plat_data = LIVE_SCENARIO_BANK[platform]
             url = plat_data['url']
             
@@ -538,12 +539,20 @@ if __name__ == "__main__":
     print("Resilience: Pre-flight Ping + Visual Settling Watchdog + F5 Healing")
     print("==================================================")
     
-    batches_str = input("Enter number of batches to run (2 tests per batch): ")
-    try:
-        total_batches = int(batches_str)
-    except ValueError:
-        total_batches = 1
+    import sys
+    total_platforms = len(LIVE_SCENARIO_BANK)
+    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+        total_batches = int(sys.argv[1])
+    elif len(sys.argv) > 1 and sys.argv[1].lower() in ['--all', 'all']:
+        total_batches = total_platforms
+    else:
+        try:
+            batches_str = input(f"Enter number of batches to run (press Enter for all {total_platforms} platforms): ")
+            total_batches = int(batches_str) if batches_str.strip() else total_platforms
+        except Exception:
+            total_batches = total_platforms
         
+    print(f"[ENGINE] Launching suite for {total_batches} batches (2 live tests per platform)...")
     keyboard.add_hotkey('esc', lambda: os._exit(0))
     print("[INFO] Press ESC at any time to kill the benchmark engine.")
     
