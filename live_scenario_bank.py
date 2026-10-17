@@ -182,5 +182,17 @@ LIVE_SCENARIO_BANK = {
         'difficult': [
             "Type 'reinforcement learning' in the search bar, click Search, AND then click the first paper's 'pdf' link"
         ]
+    },
+    'Captcha_Demo': {
+        'url': 'https://www.google.com/recaptcha/api2/demo',
+        'tier': 'guest',
+        'normal': [
+            "Click the 'I'm not a robot' checkbox inside the reCAPTCHA box",
+            "Click the blue 'Submit' button below the reCAPTCHA widget"
+        ],
+        'difficult': [
+            "Click the 'I'm not a robot' checkbox, AND then click the 'Submit' button"
+        ]
     }
 }
+

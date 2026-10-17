@@ -393,6 +393,16 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
                     pyautogui.moveTo(px, py, duration=0.25, tween=pyautogui.easeInOutQuad)
                     pyautogui.doubleClick()
                     time.sleep(0.8)
+            elif "DRAG" in sub_upper:
+                matches = re.findall(r'\[\s*[\d,\s]+\s*\]', sub)
+                if len(matches) >= 2:
+                    p1x, p1y = extract_coords_from_array(matches[0], screen_w, screen_h)
+                    p2x, p2y = extract_coords_from_array(matches[1], screen_w, screen_h)
+                    if p1x is not None and p2x is not None:
+                        overlay.update_ui(status_text=f"ACTION: DRAG ({p1x},{p1y}) -> ({p2x},{p2y})", status_color="#3fb950")
+                        pyautogui.moveTo(p1x, p1y, duration=0.25, tween=pyautogui.easeInOutQuad)
+                        pyautogui.dragTo(p2x, p2y, duration=0.8, button='left')
+                        time.sleep(0.8)
             elif "HOVER" in sub_upper:
                 px, py = extract_coords_from_array(sub, screen_w, screen_h)
                 if px is not None and py is not None:
