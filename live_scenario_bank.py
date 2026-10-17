@@ -1,78 +1,74 @@
 # LIVE WEB SCENARIO BANK
 # Curated, reproducible, non-destructive real-world web benchmarking scenarios.
-# Expanded to 15 diverse, login-free, high-traffic platforms across distinct UI paradigms.
+# All 16 platforms feature strictly non-overlapping, distinct test dimensions:
+# - Normal: Direct UI navigation, icon clicking, or tab switching (No redundant typing)
+# - Difficult: Multi-step chained search, form entry, or scroll-and-select workflows.
 
 LIVE_SCENARIO_BANK = {
     'Amazon': {
         'url': 'https://www.amazon.com',
         'tier': 'guest',
         'normal': [
-            "Type 'wireless mouse' into the top search bar and press Enter",
-            "Click the 4 Stars & Up customer review filter on the left sidebar",
-            "Click the search icon button next to the search input bar"
+            "Click on the 'Today's Deals' navigation link in the top menu bar",
+            "Click on the 'Customer Service' link in the top nav",
+            "Click the Cart icon button on the top right"
         ],
         'difficult': [
-            "Type 'mechanical keyboard' into search bar, press Enter, AND then click the first product card title"
+            "Type 'wireless mouse' into search bar, press Enter, AND then click the first product card title"
         ]
     },
     'Wikipedia': {
         'url': 'https://www.wikipedia.org',
         'tier': 'guest',
         'normal': [
-            "Type 'Artificial Intelligence' in the search input and click Search",
             "Click the English language link to navigate to the English main page",
-            "Click on the search button with the magnifying glass icon"
+            "Click on the 'Commons' sister project link at the bottom of the page"
         ],
         'difficult': [
-            "Type 'Quantum Computing' in search, click Search, AND then click 'History' in the Table of Contents"
+            "Type 'Artificial Intelligence' in search input, press Enter, AND then click the first link in the article"
         ]
     },
     'YouTube': {
         'url': 'https://www.youtube.com',
         'tier': 'guest',
         'normal': [
-            "Type 'nature documentary 4k' into the search input and click Search",
-            "Click on the first video thumbnail in the feed",
+            "Click on the first video thumbnail in the home feed",
             "Click the search button with the magnifying glass icon"
         ],
         'difficult': [
-            "Type 'classical music' in search, press Enter, AND then click the first video title in search results"
+            "Type 'classical piano' in search, press Enter, AND then click the first video title in search results"
         ]
     },
     'GitHub': {
         'url': 'https://github.com/explore',
         'tier': 'guest',
         'normal': [
-            "Type 'vision language models' in the top search bar and press Enter",
             "Click the 'Trending' navigation tab at the top",
             "Click on the 'Topics' navigation link"
         ],
         'difficult': [
-            "Type 'deep learning' in search bar, press Enter, AND then click the 'Repositories' filter on the left"
+            "Type 'vision language models' in search bar, press Enter, AND then click the first repository card"
         ]
     },
     'Online_Spreadsheet': {
         'url': 'https://ethercalc.net/test_vlm_sandbox',
         'tier': 'guest',
         'normal': [
-            "Click on cell C3 and type 'Q3 Profit'",
             "Click the Bold icon (B) on the top formatting toolbar",
             "Click on cell B2 and type '1000'"
         ],
         'difficult': [
-            "Click on cell C3, type 'Revenue', AND then click cell D3 and type '50000'"
+            "Click on cell B2, type 'Revenue', press Enter, AND then click cell C2 and type '50000'"
         ]
     },
     'DuckDuckGo': {
         'url': 'https://duckduckgo.com',
         'tier': 'guest',
         'normal': [
-            "Type 'autonomous AI agents' in search bar and click Search",
-            "Click the Settings hamburger menu icon on the top right",
-            "Type 'weather forecast' in search input and press Enter"
+            "Click the Settings hamburger menu icon on the top right"
         ],
         'difficult': [
-            "Type 'deep learning' in search bar, press Enter, AND then click the 'Images' tab"
+            "Type 'autonomous agents' in search bar, press Enter, AND then click the 'Images' tab"
         ]
     },
     'HackerNews': {
@@ -91,72 +87,62 @@ LIVE_SCENARIO_BANK = {
         'url': 'https://www.bbc.com',
         'tier': 'guest',
         'normal': [
-            "Click the 'Innovation' or 'Tech' navigation tab in the top header",
-            "Click on the 'Business' category link in the menu bar",
-            "Click on the primary headline title on the homepage"
+            "Click the 'Innovation' category link in the top menu bar",
+            "Click the 'Business' category link in the menu bar"
         ],
         'difficult': [
-            "Click the 'Sport' navigation tab, AND then click the first featured match report headline"
+            "Click on the primary headline title on the homepage, AND then scroll down 500 pixels"
         ]
     },
     'MDN_Docs': {
         'url': 'https://developer.mozilla.org',
         'tier': 'guest',
         'normal': [
-            "Type 'Array filter' into the top search bar and press Enter",
-            "Click on the 'References' navigation menu at the top",
-            "Type 'fetch API' in the search input and press Enter"
+            "Click on the 'References' navigation dropdown menu at the top"
         ],
         'difficult': [
-            "Type 'Promise' into search input, press Enter, AND then click the first search result link"
+            "Type 'Array filter' into search input, press Enter, AND then click the first search result link"
         ]
     },
     'IMDb': {
         'url': 'https://www.imdb.com',
         'tier': 'guest',
         'normal': [
-            "Type 'Interstellar' into the top search bar and click Search",
-            "Click the 'Menu' button next to the IMDb logo",
-            "Type 'Oppenheimer' into search bar and press Enter"
+            "Click the 'Menu' button next to the IMDb logo"
         ],
         'difficult': [
-            "Type 'The Dark Knight' into search bar, press Enter, AND then click the first movie card title"
+            "Type 'Interstellar' into search bar, press Enter, AND then click the first movie card title"
         ]
     },
     'Desmos_Calculator': {
         'url': 'https://www.desmos.com/scientific',
         'tier': 'guest',
         'normal': [
-            "Click the number button '7', click the '+' button, click '8', and click '='",
-            "Click the number button '9', click the '×' multiplication button, and click '5'",
             "Click the 'clear' or 'clear all' button on the keypad"
         ],
         'difficult': [
-            "Click button '2', click button '5', click button '×', click button '4', AND then click '='"
+            "Click button '7', click button '×', click button '8', AND then click '='"
         ]
     },
     'Internet_Archive': {
         'url': 'https://archive.org',
         'tier': 'guest',
         'normal': [
-            "Type 'https://google.com' in the Wayback Machine search input bar and press Enter",
             "Click on the 'Books' icon in the top media collection bar",
             "Click on the 'Audio' icon in the top media category bar"
         ],
         'difficult': [
-            "Type 'NASA archives' into the main search box, press Enter, AND then click the first collection item"
+            "Type 'https://google.com' in the Wayback Machine search input bar and press Enter"
         ]
     },
     'Worldometers': {
         'url': 'https://www.worldometers.info',
         'tier': 'guest',
         'normal': [
-            "Click on the 'World Population' section link",
-            "Scroll down to view the Current World Population counter",
-            "Click on the 'Coronavirus' statistical link"
+            "Click on the 'World Population' section link"
         ],
         'difficult': [
-            "Click on 'World Population', scroll down 600 pixels, AND then click the 'Countries in the world' link"
+            "Scroll down 600 pixels, AND then click the 'Countries in the world' link"
         ]
     },
     'W3Schools': {
@@ -164,18 +150,16 @@ LIVE_SCENARIO_BANK = {
         'tier': 'guest',
         'normal': [
             "Click on the 'HTML' tutorial card on the homepage",
-            "Type 'CSS Flexbox' in the search bar and press Enter",
             "Click on the 'Tutorials' dropdown button in the navigation bar"
         ],
         'difficult': [
-            "Click on 'Python' tutorial, AND then click the green 'Try it Yourself' button"
+            "Type 'CSS Flexbox' in search bar, press Enter, AND then click the first tutorial result"
         ]
     },
     'ArXiv': {
         'url': 'https://arxiv.org',
         'tier': 'guest',
         'normal': [
-            "Type 'vision language models' in the search input and click Search",
             "Click on the 'Computer Science' link under subject categories",
             "Click the 'Advanced Search' link next to the search input"
         ],
@@ -187,12 +171,10 @@ LIVE_SCENARIO_BANK = {
         'url': 'https://www.google.com/recaptcha/api2/demo',
         'tier': 'guest',
         'normal': [
-            "Click the 'I'm not a robot' checkbox inside the reCAPTCHA box",
-            "Click the blue 'Submit' button below the reCAPTCHA widget"
+            "Click the 'I'm not a robot' checkbox inside the reCAPTCHA box"
         ],
         'difficult': [
-            "Click the 'I'm not a robot' checkbox, AND then click the 'Submit' button"
+            "Click the 'I'm not a robot' checkbox, AND then click the blue 'Submit' button"
         ]
     }
 }
-

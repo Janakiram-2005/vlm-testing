@@ -148,10 +148,10 @@ def extract_coords_from_array(array_str, screen_w, screen_h):
 
 def parse_type_command(sub):
     """
-    Robust parser handling both bracketed:
-    TYPE [72, 233, 97, 348] text
-    and unbracketed:
-    TYPE 72 233 97 348 text
+    Robust parser handling:
+    1. Bracketed: TYPE [72, 233, 97, 348] text
+    2. Raw numbers: TYPE 72 233 97 348 text
+    3. Direct text (when already focused): TYPE text
     """
     m_bracket = re.search(r'TYPE\s*(\[.*?\])\s*(.*)', sub, re.IGNORECASE)
     if m_bracket:
@@ -168,6 +168,11 @@ def parse_type_command(sub):
         text = sub[last_idx:].strip().strip("'\"")
         coord_str = " ".join(nums[:4] if len(nums) >= 4 else nums[:2])
         return coord_str, text
+        
+    # Support TYPE directly into already focused element (e.g. "TYPE deep learning")
+    m_simple = re.search(r'TYPE\s+(.+)', sub, re.IGNORECASE)
+    if m_simple:
+        return None, m_simple.group(1).strip().strip("'\"")
         
     return None, None
 
@@ -195,16 +200,16 @@ def extract_commands(vlm_response):
         thought = lines[0]
         
     for l in reversed(lines):
-        clean_l = re.sub(r'^(?:\*\*)?COMMAND(?:\*\*)?:?\s*', '', l, flags=re.IGNORECASE).strip()
+        clean_l = re.sub(r'^(?:\*\*)?(?:COMMAND|ACTION)(?:\*\*)?:?\s*', '', l, flags=re.IGNORECASE).strip()
         clean_l = clean_l.strip('`* ')
         clean_l = re.sub(r'^\d+\.\s*', '', clean_l)
-        if any(keyword in clean_l.upper() for keyword in ["CLICK", "TYPE", "PRESS", "SCROLL", "DONE", "FAILED", "WAIT", "ENTER", "HOVER"]):
+        if any(keyword in clean_l.upper() for keyword in ["CLICK", "TYPE", "PRESS", "SCROLL", "DONE", "FAILED", "WAIT", "ENTER", "HOVER", "DRAG"]):
             command_str = clean_l
             break
             
     if not command_str:
         if lines:
-            command_str = re.sub(r'^(?:\*\*)?COMMAND(?:\*\*)?:?\s*', '', lines[-1], flags=re.IGNORECASE).strip().strip('`* ')
+            command_str = re.sub(r'^(?:\*\*)?(?:COMMAND|ACTION)(?:\*\*)?:?\s*', '', lines[-1], flags=re.IGNORECASE).strip().strip('`* ')
         else:
             command_str = "WAIT 1.0"
         
@@ -332,7 +337,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
     vlm_total_latency_ms = 0.0
     action_chain = []
     trajectory_buffer = []
-    max_steps = 6  # Ample step budget for real web workflows
+    max_steps = 8  # Ample step budget for overlay dismissal + multi-step navigation
     status = "FAILED"
     error_type = "AI_SPATIAL_MISS"
     
@@ -418,18 +423,19 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
                     time.sleep(0.8)
             elif "TYPE" in sub_upper:
                 coord_str, text_to_type = parse_type_command(sub)
-                if coord_str is not None and text_to_type is not None:
-                    px, py = extract_coords_from_array(coord_str, screen_w, screen_h)
-                    if px is not None and py is not None:
-                        overlay.update_ui(status_text=f"ACTION: TYPE '{text_to_type}'", status_color="#3fb950")
-                        pyautogui.moveTo(px, py, duration=0.25)
-                        pyautogui.click()
-                        time.sleep(0.2)
-                        # Clear old placeholder/previous search input cleanly
-                        pyautogui.hotkey('ctrl', 'a')
-                        time.sleep(0.1)
-                        pyautogui.write(text_to_type, interval=0.03)
-                        time.sleep(0.5)
+                if text_to_type is not None:
+                    overlay.update_ui(status_text=f"ACTION: TYPE '{text_to_type}'", status_color="#3fb950")
+                    if coord_str is not None:
+                        px, py = extract_coords_from_array(coord_str, screen_w, screen_h)
+                        if px is not None and py is not None:
+                            pyautogui.moveTo(px, py, duration=0.25)
+                            pyautogui.click()
+                            time.sleep(0.2)
+                            # Clear old placeholder/previous search input cleanly
+                            pyautogui.hotkey('ctrl', 'a')
+                            time.sleep(0.1)
+                    pyautogui.write(text_to_type, interval=0.03)
+                    time.sleep(0.5)
             elif "WAIT" in sub_upper:
                 wait_match = re.search(r'\d+(?:\.\d+)?', sub)
                 sec = float(wait_match.group(0)) if wait_match else 1.0
@@ -501,35 +507,33 @@ def run_live_batch_loop(overlay, total_batches):
                 time.sleep(2)
                 continue
                 
-            # Step 2: Launch URL cleanly without snapping or artificial clicks
-            overlay.update_ui(status_text=f"OPENING {url}...", status_color="#58a6ff")
-            webbrowser.open(url)
-            time.sleep(3.0)
-                
-            # Step 3: Adaptive Visual Settling Watchdog
-            overlay.update_ui(status_text="WATCHDOG: WAITING FOR PAGE VISUAL SETTLE...", status_color="#58a6ff")
-            settled, page_load_ms = wait_for_visual_settle(max_timeout=7.0)
-            if not settled:
-                print("[WATCHDOG WARN] Visual variance high or blank. Attempting F5 self-healing...")
-                trigger_f5_recovery()
-                settled, extra_ms = wait_for_visual_settle(max_timeout=5.0)
-                page_load_ms += extra_ms
-                
-            overlay.update_ui(status_text=f"PAGE SETTLED IN {round(page_load_ms, 1)}ms", status_color="#3fb950")
-            time.sleep(0.5)
-            
-            # Select scenarios (1 normal, 1 difficult)
+            # Select scenarios (1 normal, 1 difficult) - guaranteed distinct dimensions
             selected_normal = random.sample(plat_data['normal'], 1)
             selected_diff = random.sample(plat_data['difficult'], 1)
             scenarios = selected_normal + selected_diff
             
-            for sc in scenarios:
-                await execute_live_test(overlay, batch_number, platform, url, sc, page_load_ms)
-                time.sleep(1.5)
+            for sc_idx, sc in enumerate(scenarios, 1):
+                overlay.update_ui(task_text=f"BATCH {batch_number} [{sc_idx}/2]: {platform}", status_text=f"LAUNCHING FRESH TAB FOR {platform}...", status_color="#58a6ff")
+                webbrowser.open(url)
+                time.sleep(2.5)
                 
-            # Cleanup: Close browser tab
-            pyautogui.hotkey('ctrl', 'w')
-            time.sleep(1.0)
+                # Adaptive Visual Settling Watchdog for clean initial render
+                settled, page_load_ms = wait_for_visual_settle(max_timeout=7.0)
+                if not settled:
+                    print("[WATCHDOG WARN] Visual variance high or blank. Attempting F5 self-healing...")
+                    trigger_f5_recovery()
+                    settled, extra_ms = wait_for_visual_settle(max_timeout=5.0)
+                    page_load_ms += extra_ms
+                    
+                overlay.update_ui(status_text=f"PAGE SETTLED IN {round(page_load_ms, 1)}ms", status_color="#3fb950")
+                time.sleep(0.5)
+                
+                await execute_live_test(overlay, batch_number, platform, url, sc, page_load_ms)
+                time.sleep(1.0)
+                
+                # Cleanup: Close browser tab cleanly so next scenario gets 100% fresh slate
+                pyautogui.hotkey('ctrl', 'w')
+                time.sleep(1.0)
             
         overlay.update_ui(task_text="ALL BATCHES FINISHED", status_text=f"COMPLETED {total_batches} LIVE BATCHES!", status_color="#3fb950", result_text="DONE", result_color="#3fb950")
         time.sleep(3)
