@@ -430,6 +430,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
             trajectory_buffer.append({
                 "step": step,
                 "image": captured_pil,
+                "thought": thought_line,
                 "action_label": full_command,
                 "history": list(action_chain)
             })
@@ -454,6 +455,7 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
                     "image_file": img_filename,
                     "platform": platform,
                     "instruction": scenario,
+                    "thought": item.get("thought", ""),
                     "history": item["history"][:-1],
                     "ground_truth": item["action_label"]
                 }
@@ -529,7 +531,7 @@ if __name__ == "__main__":
     print("==================================================")
     print("🌐 VLM AUTONOMOUS LIVE WEB BENCHMARK ENGINE")
     print(f"Active Model: {MODEL_NAME} ({VERTEX_LOCATION})")
-    print("Targeting: Amazon, Google Sheets Sandbox, YouTube, Wikipedia, GitHub")
+    print(f"Targeting {len(LIVE_SCENARIO_BANK)} Live Platforms: {', '.join(LIVE_SCENARIO_BANK.keys())}")
     print("Telemetry: Logging to 'Live_Web_Benchmark' (Sheet 2)")
     print("Resilience: Pre-flight Ping + Visual Settling Watchdog + F5 Healing")
     print("==================================================")
