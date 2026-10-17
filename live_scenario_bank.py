@@ -21,11 +21,10 @@ LIVE_SCENARIO_BANK = {
         'url': 'https://www.wikipedia.org',
         'tier': 'guest',
         'normal': [
-            "Click the English language link to navigate to the English main page",
-            "Click on the 'Commons' sister project link at the bottom of the page"
+            "Click the English language link to navigate to the English main page"
         ],
         'difficult': [
-            "Type 'Artificial Intelligence' in search input, press Enter, AND then click the first link in the article"
+            "Click the English language link, AND then click on the 'In the news' or 'Today's featured article' title"
         ]
     },
     'YouTube': {
@@ -121,7 +120,7 @@ LIVE_SCENARIO_BANK = {
             "Click the 'clear' or 'clear all' button on the keypad"
         ],
         'difficult': [
-            "Click button '7', click button '×', click button '8', AND then click '='"
+            "Click button '7', click the multiplication operator button, click button '8', AND then click '='"
         ]
     },
     'Internet_Archive': {

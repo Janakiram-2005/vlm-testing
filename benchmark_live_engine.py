@@ -337,6 +337,8 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
     vlm_total_latency_ms = 0.0
     action_chain = []
     trajectory_buffer = []
+    click_history = []
+    consecutive_repeats = 0
     max_steps = 8  # Ample step budget for overlay dismissal + multi-step navigation
     status = "FAILED"
     error_type = "AI_SPATIAL_MISS"
@@ -381,11 +383,11 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
                 break
             elif "SCROLL DOWN" in sub_upper:
                 overlay.update_ui(status_text="ACTION: SCROLL DOWN", status_color="#3fb950")
-                pyautogui.scroll(-550)
+                pyautogui.scroll(-280)
                 time.sleep(1.0)
             elif "SCROLL UP" in sub_upper:
                 overlay.update_ui(status_text="ACTION: SCROLL UP", status_color="#3fb950")
-                pyautogui.scroll(550)
+                pyautogui.scroll(280)
                 time.sleep(1.0)
             elif any(k in sub_upper for k in ["PRESS_ENTER", "PRESS ENTER", "HIT ENTER"]) or sub_upper == "ENTER":
                 overlay.update_ui(status_text="ACTION: PRESS ENTER", status_color="#3fb950")
@@ -417,7 +419,24 @@ async def execute_live_test(overlay, batch_id, platform, url, scenario, page_loa
             elif "CLICK" in sub_upper:
                 px, py = extract_coords_from_array(sub, screen_w, screen_h)
                 if px is not None and py is not None:
-                    overlay.update_ui(status_text=f"ACTION: CLICK ({px}, {py})", status_color="#3fb950")
+                    # Anti-Stagnation Watchdog: Detect repetitive clicks on same element
+                    if click_history and math.hypot(px - click_history[-1][0], py - click_history[-1][1]) < 28:
+                        consecutive_repeats += 1
+                    else:
+                        consecutive_repeats = 0
+                    click_history.append((px, py))
+                    
+                    if consecutive_repeats >= 1:
+                        jitter_x = random.choice([-16, 16])
+                        jitter_y = random.choice([-14, 14])
+                        px = max(10, min(screen_w - 10, px + jitter_x))
+                        py = max(10, min(screen_h - 10, py + jitter_y))
+                        print(f"⚠️ [ANTI-STAGNATION] Jitter offset applied: ({jitter_x:+d}, {jitter_y:+d}) -> clicking ({px}, {py})")
+                        overlay.update_ui(status_text=f"JITTER HEAL: CLICK ({px}, {py})", status_color="#f2cc60")
+                        action_chain.append(f"STAGNATION_HEAL: Offset applied to ({px},{py})")
+                    else:
+                        overlay.update_ui(status_text=f"ACTION: CLICK ({px}, {py})", status_color="#3fb950")
+                        
                     pyautogui.moveTo(px, py, duration=0.25, tween=pyautogui.easeInOutQuad)
                     pyautogui.click()
                     time.sleep(0.8)
