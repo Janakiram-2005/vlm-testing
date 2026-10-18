@@ -64,7 +64,7 @@ LIVE_SCENARIO_BANK = {
         'url': 'https://duckduckgo.com',
         'tier': 'guest',
         'normal': [
-            "Click the Settings hamburger menu icon on the top right"
+            "Click the Settings hamburger menu icon on the top right to open the drawer menu"
         ],
         'difficult': [
             "Type 'autonomous agents' in search bar, press Enter, AND then click the 'Images' tab"
@@ -74,8 +74,7 @@ LIVE_SCENARIO_BANK = {
         'url': 'https://news.ycombinator.com',
         'tier': 'guest',
         'normal': [
-            "Click on the 'new' navigation link in the top orange header",
-            "Click on the 'past' navigation link in the top header",
+            "Click on the 'comments' navigation link in the top orange header",
             "Click on the 'ask' navigation link in the top menu bar"
         ],
         'difficult': [
@@ -86,21 +85,21 @@ LIVE_SCENARIO_BANK = {
         'url': 'https://www.bbc.com',
         'tier': 'guest',
         'normal': [
-            "Click the 'Innovation' category link in the top menu bar",
+            "Click the 'News' or 'Sport' category link in the top menu bar",
             "Click the 'Business' category link in the menu bar"
         ],
         'difficult': [
-            "Click on the primary headline title on the homepage, AND then scroll down 500 pixels"
+            "Click on the primary headline title on the homepage"
         ]
     },
     'MDN_Docs': {
         'url': 'https://developer.mozilla.org',
         'tier': 'guest',
         'normal': [
-            "Click on the 'References' navigation dropdown menu at the top"
+            "Click the search input box on the top right"
         ],
         'difficult': [
-            "Type 'Array filter' into search input, press Enter, AND then click the first search result link"
+            "Type 'Array filter' in search input, AND then click the first search suggestion in the dropdown"
         ]
     },
     'IMDb': {
@@ -117,10 +116,10 @@ LIVE_SCENARIO_BANK = {
         'url': 'https://www.desmos.com/scientific',
         'tier': 'guest',
         'normal': [
-            "Click the 'clear' or 'clear all' button on the keypad"
+            "Click number button '7', click '+', click '8', AND then click '='"
         ],
         'difficult': [
-            "Click button '7', click the multiplication operator button, click button '8', AND then click '='"
+            "Click button '9', click the multiplication operator button, click button '5', AND then click '='"
         ]
     },
     'Internet_Archive': {

@@ -277,6 +277,15 @@ async def ask_vlm_live_action(task_prompt, previous_actions):
         "NOTE: The top banner contains agent HUD telemetry (Task, Status, Model). Ignore it and interact with the target webpage underneath.\n\n"
         "PRIORITY 0 (MODAL & COOKIE DISMISSAL):\n"
         "- If a cookie consent banner, location dialog ('Deliver to...'), or promotional overlay obstructs the page, click its Dismiss / Close / 'Accept All' button first.\n\n"
+        "ADAPTIVE UI RESILIENCE & DYNAMIC LAYOUT SHIFTS:\n"
+        "- Live websites frequently update layouts, reorder navigation keys, or collapse items into responsive menus.\n"
+        "- Do NOT assume elements are in fixed historical positions. Scan the ACTUAL rendered screen frame.\n"
+        "- If an element's text or key has slightly shifted, changed wording, or is represented by an icon (e.g. 'Clear' shown as 'C' or 'AC' or '⌫', 'Innovation' represented by 'Tech' or inside 'More' / 'Menu' dropdown):\n"
+        "  1. Click the actual visible semantic equivalent on screen!\n"
+        "  2. If the item is collapsed inside a hamburger menu or navigation drawer, click the menu/drawer first to expose it!\n"
+        "  3. Never output FAILED prematurely if a semantic substitute or container menu is visible.\n\n"
+        "EARLY SUCCESS & COMPLETION CRITERIA:\n"
+        "- If your previous action already caused the target page to load, a drawer/menu to open, or search results to display, the task is ACCOMPLISHED! Output 'COMMAND: DONE' immediately rather than clicking again or waiting!\n\n"
         "MACRO PLANNING:\n"
         "- You may chain up to 3 commands using ' THEN ' (e.g. 'CLICK [coords] THEN TYPE text THEN PRESS_ENTER').\n\n"
         "You MUST reply in exactly TWO lines:\n"
@@ -284,7 +293,7 @@ async def ask_vlm_live_action(task_prompt, previous_actions):
         "2. The COMMAND line with your action(s):\n"
         "   - CLICK [ymin, xmin, ymax, xmax]\n"
         "   - DOUBLE_CLICK [ymin, xmin, ymax, xmax] (For spreadsheet cells or text selection)\n"
-        "   - TYPE [ymin, xmin, ymax, xmax] <TEXT>\n"
+        "   - TYPE [ymin, xmin, ymax, xmax] <TEXT> (Or 'TYPE <TEXT>' if already focused)\n"
         "   - PRESS_ENTER (Hits Enter on keyboard to submit search)\n"
         "   - HOVER [ymin, xmin, ymax, xmax] (To reveal hidden dropdowns/menus)\n"
         "   - SCROLL DOWN (Use if the target is below the current viewport)\n"
@@ -534,7 +543,15 @@ def run_live_batch_loop(overlay, total_batches):
             for sc_idx, sc in enumerate(scenarios, 1):
                 overlay.update_ui(task_text=f"BATCH {batch_number} [{sc_idx}/2]: {platform}", status_text=f"LAUNCHING FRESH TAB FOR {platform}...", status_color="#58a6ff")
                 webbrowser.open(url)
-                time.sleep(2.5)
+                time.sleep(1.2)
+                try:
+                    # Clean native Win32 window maximize without triggering Windows 11 Snap Layouts
+                    pyautogui.hotkey('alt', 'space')
+                    time.sleep(0.1)
+                    pyautogui.press('x')
+                except Exception:
+                    pass
+                time.sleep(1.5)
                 
                 # Adaptive Visual Settling Watchdog for clean initial render
                 settled, page_load_ms = wait_for_visual_settle(max_timeout=7.0)
