@@ -35,3 +35,8 @@ env/
 
 # MacOS
 .DS_Store
+
+# Training artifacts & archives
+kaggle_bundle/
+*.zip
+healvlm_qwen2_vl_lora/
