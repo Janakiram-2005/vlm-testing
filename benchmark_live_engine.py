@@ -549,6 +549,9 @@ def run_live_batch_loop(overlay, total_batches):
                     pyautogui.hotkey('alt', 'space')
                     time.sleep(0.1)
                     pyautogui.press('x')
+                    time.sleep(0.2)
+                    # Hard-reset browser zoom to baseline 100% (neutralizes any previous 70%, 90%, 110% zoom drift)
+                    pyautogui.hotkey('ctrl', '0')
                 except Exception:
                     pass
                 time.sleep(1.5)
