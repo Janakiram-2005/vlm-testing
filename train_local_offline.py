@@ -154,10 +154,19 @@ class WebActionDataset(Dataset):
         thought = item.get("thought", "Identify target visual element and execute primary action.").strip()
         ground_truth = item.get("ground_truth", "").strip()
 
+        # Process image with image_processor first to get exact grid dimensions
+        img_inputs = self.image_processor([image], return_tensors="pt")
+        pixel_values = img_inputs["pixel_values"].squeeze(0)
+        image_grid_thw = img_inputs["image_grid_thw"].squeeze(0)
+
+        # Qwen2-VL requires exact number of <|image_pad|> tokens matching vision patches
+        num_image_tokens = int((image_grid_thw[1].item() * image_grid_thw[2].item()) // 4)
+        image_tokens = "<|image_pad|>" * num_image_tokens
+
         # Conversation formatting
         prompt_text = (
             f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
-            f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>{instruction}<|im_end|>\n"
+            f"<|im_start|>user\n<|vision_start|>{image_tokens}<|vision_end|>{instruction}<|im_end|>\n"
             f"<|im_start|>assistant\nTHOUGHT: {thought}\nACTION: {ground_truth}<|im_end|>\n"
         )
 
@@ -175,9 +184,6 @@ class WebActionDataset(Dataset):
         if start_idx != -1:
             for i in range(start_idx, len(input_ids)):
                 labels[i] = input_ids[i]
-
-        img_inputs = self.image_processor([image], return_tensors="pt")
-        pixel_values = img_inputs["pixel_values"].squeeze(0)
         image_grid_thw = img_inputs["image_grid_thw"].squeeze(0)
 
         return {
@@ -263,15 +269,18 @@ def evaluate_canary_cases(model, tokenizer, image_processor, canary_samples: Lis
             img_path = os.path.join(IMAGES_DIR, item["image_file"])
             image = Image.open(img_path).convert("RGB")
             
+            img_inputs = image_processor([image], return_tensors="pt")
+            thw = img_inputs["image_grid_thw"][0]
+            num_image_tokens = int((thw[1].item() * thw[2].item()) // 4)
+            image_tokens = "<|image_pad|>" * num_image_tokens
+
             prompt = (
                 f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
-                f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>{item['instruction']}<|im_end|>\n"
+                f"<|im_start|>user\n<|vision_start|>{image_tokens}<|vision_end|>{item['instruction']}<|im_end|>\n"
                 f"<|im_start|>assistant\n"
             )
             
             inputs = tokenizer(prompt, return_tensors="pt")
-            img_inputs = image_processor([image], return_tensors="pt")
-            
             input_ids = inputs["input_ids"].to(device)
             attention_mask = inputs["attention_mask"].to(device)
             pixel_values = img_inputs["pixel_values"].to(device, dtype=model.dtype)

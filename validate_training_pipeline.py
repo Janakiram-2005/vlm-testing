@@ -41,7 +41,7 @@ DATASET_FILE = "live_vlm_dataset/verified_true_cases.jsonl"
 IMAGES_DIR = "live_vlm_dataset/images"
 MODEL_ID = "Qwen/Qwen2-VL-2B-Instruct"
 
-def format_conversation(sample: dict):
+def format_conversation(sample: dict, num_image_tokens: int = 1):
     """
     Formats the sample into Qwen2-VL conversational text structure.
     """
@@ -49,10 +49,10 @@ def format_conversation(sample: dict):
     thought = sample.get("thought", "Identify target visual element and execute primary action.").strip()
     ground_truth = sample.get("ground_truth", "").strip()
     
-    # Standard Qwen chat template formatting
+    image_tokens = "<|image_pad|>" * max(1, num_image_tokens)
     text = (
         f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
-        f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>{instruction}<|im_end|>\n"
+        f"<|im_start|>user\n<|vision_start|>{image_tokens}<|vision_end|>{instruction}<|im_end|>\n"
         f"<|im_start|>assistant\nTHOUGHT: {thought}\nACTION: {ground_truth}<|im_end|>\n"
     )
     return text, thought, ground_truth
@@ -124,8 +124,13 @@ def validate_pipeline():
             validation_failures += 1
             continue
 
+        # Compute dynamic image patches
+        img_inputs = img_processor([im], return_tensors="pt")
+        thw = img_inputs["image_grid_thw"][0]
+        n_image_tokens = int((thw[1].item() * thw[2].item()) // 4)
+
         # Format conversation
-        formatted_text, expected_thought, expected_action = format_conversation(sample)
+        formatted_text, expected_thought, expected_action = format_conversation(sample, num_image_tokens=n_image_tokens)
         input_ids = tokenizer.encode(formatted_text, add_special_tokens=False)
         token_lengths.append(len(input_ids))
 
