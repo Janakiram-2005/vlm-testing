@@ -325,6 +325,37 @@ def evaluate_canary_cases(model, tokenizer, image_processor, canary_samples: Lis
     return hit_rate, hard_cases
 
 
+def ensure_model_weights_ready(model_id: str, max_retries: int = 15) -> str:
+    """
+    Resilient model downloader with automatic resumption from last saved byte,
+    extended timeout (600s), and exponential backoff retry.
+    """
+    from huggingface_hub import snapshot_download
+
+    os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "600"
+    os.environ["HF_HUB_ETAG_TIMEOUT"] = "600"
+
+    print(f"\n[DOWNLOAD GUARD] Verifying/Resuming model weights in local cache...")
+    print(f"Target Model: {model_id} (Auto-Resume Enabled)")
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            local_dir = snapshot_download(
+                repo_id=model_id,
+                resume_download=True,
+                max_workers=1
+            )
+            print(f"✅ Model weights completely verified at: {local_dir}")
+            return local_dir
+        except Exception as e:
+            print(f"⚠️ [Network Glitch] Attempt {attempt}/{max_retries}: {e}")
+            if attempt < max_retries:
+                wait_time = min(30, attempt * 5)
+                print(f"   Connection fluctuating... Resuming from last byte in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                raise e
+
 # ==============================================================================
 # MAIN ENGINE RUNNER
 # ==============================================================================
@@ -400,6 +431,9 @@ def run_training():
     img_processor = Qwen2VLImageProcessor.from_pretrained(MODEL_ID)
     pad_token_id = tokenizer.pad_token_id or tokenizer.eos_token_id
 
+    # Resilient download guard with auto-resume
+    local_model_path = ensure_model_weights_ready(MODEL_ID)
+
     # Loading strategy
     compute_dtype = torch.float16 if has_cuda else torch.float32
     if has_cuda:
@@ -411,18 +445,20 @@ def run_training():
             bnb_4bit_use_double_quant=True
         )
         base_model = Qwen2VLForConditionalGeneration.from_pretrained(
-            MODEL_ID,
+            local_model_path,
             quantization_config=bnb_config,
             device_map="auto",
             dtype=compute_dtype,
+            local_files_only=True,
             trust_remote_code=True
         )
     else:
         print("Loading in FP32 on CPU with low memory overhead...")
         base_model = Qwen2VLForConditionalGeneration.from_pretrained(
-            MODEL_ID,
+            local_model_path,
             device_map="cpu",
             dtype=compute_dtype,
+            local_files_only=True,
             trust_remote_code=True
         )
 
