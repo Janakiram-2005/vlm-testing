@@ -11,11 +11,11 @@ matplotlib
 python-dotenv
 playwright
 
-# Training & QLoRA Dependencies (Colab / GPU)
+# Training & QLoRA Dependencies (Colab / GPU - CUDA 13 & Python 3.13 Ready)
 transformers==4.48.3
 accelerate==1.3.0
 peft==0.14.0
-bitsandbytes==0.45.2
+bitsandbytes>=0.50.0
 qwen-vl-utils==0.0.8
 sentencepiece
 tiktoken

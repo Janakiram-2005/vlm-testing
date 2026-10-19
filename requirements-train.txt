@@ -2,12 +2,12 @@
 # HEALVLM: QWEN2-VL-2B-INSTRUCT 4-BIT QLORA TRAINING DEPENDENCIES
 # ==============================================================================
 # Pinned, battle-tested dependencies for error-free training on Nvidia T4 GPU (Colab/Kaggle)
-# Fully compatible with Python 3.13 and CUDA 12 environment.
+# Fully compatible with Python 3.13, CUDA 13.0 (cu130), and CUDA 12.x.
 
 transformers==4.48.3
 accelerate==1.3.0
 peft==0.14.0
-bitsandbytes==0.45.2
+bitsandbytes>=0.50.0
 qwen-vl-utils==0.0.8
 sentencepiece
 tiktoken
