@@ -10,3 +10,13 @@ seaborn
 matplotlib
 python-dotenv
 playwright
+
+# Training & QLoRA Dependencies (Colab / GPU)
+transformers==4.48.3
+accelerate==1.3.0
+peft==0.14.0
+bitsandbytes==0.45.2
+qwen-vl-utils==0.0.8
+sentencepiece
+tiktoken
+psutil

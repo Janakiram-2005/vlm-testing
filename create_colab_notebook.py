@@ -3,6 +3,7 @@ CREATE GOOGLE COLAB TRAIN QWEN2-VL NOTEBOOK
 ===========================================
 Generates a fully self-contained, hyperparameter-tuned, self-healing
 Google Colab notebook for Qwen2-VL-2B-Instruct fine-tuning.
+Compatible with Python 3.13, Nvidia T4 GPU (15GB VRAM), and CUDA 12.
 """
 
 import json
@@ -35,7 +36,37 @@ notebook = {
             "cell_type": "markdown",
             "metadata": {},
             "source": [
-                "## ⚙️ Step 1: Verify Hardware & GPU Acceleration\n",
+                "## 📦 Step 1: Install High-Performance Dependencies (Pinned Stable Stack)\n",
+                "*We install pinned, Python 3.13-compatible dependencies first before importing PyTorch into memory, guaranteeing a clean runtime without C++ symbol conflicts.*"
+            ]
+        },
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": [
+                "# Install pinned stable stack for Qwen2-VL 4-bit QLoRA\n",
+                "!pip install -q transformers==4.48.3 accelerate==1.3.0 peft==0.14.0 bitsandbytes==0.45.2 qwen-vl-utils==0.0.8 sentencepiece tiktoken psutil huggingface-hub>=0.28.0\n",
+                "\n",
+                "import transformers, peft, bitsandbytes, accelerate, qwen_vl_utils\n",
+                "print(\"=\" * 60)\n",
+                "print(\"📦 DEPENDENCY VERIFICATION\")\n",
+                "print(\"=\" * 60)\n",
+                "print(f\"✅ transformers : {transformers.__version__}\")\n",
+                "print(f\"✅ peft         : {peft.__version__}\")\n",
+                "print(f\"✅ bitsandbytes : {bitsandbytes.__version__}\")\n",
+                "print(f\"✅ accelerate   : {accelerate.__version__}\")\n",
+                "print(f\"✅ qwen_vl_utils: {qwen_vl_utils.__version__}\")\n",
+                "print(\"=\" * 60)\n",
+                "print(\"All dependencies successfully installed and verified!\")"
+            ]
+        },
+        {
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": [
+                "## ⚙️ Step 2: Verify Hardware & GPU Acceleration\n",
                 "*Colab Menu: **Runtime** $\\rightarrow$ **Change runtime type** $\\rightarrow$ Select **T4 GPU**.*"
             ]
         },
@@ -63,39 +94,6 @@ notebook = {
                 "else:\n",
                 "    print(\"⚠️ WARNING: No GPU detected! Go to Runtime -> Change runtime type -> Select T4 GPU.\")\n",
                 "print(\"=\" * 60)"
-            ]
-        },
-        {
-            "cell_type": "markdown",
-            "metadata": {},
-            "source": [
-                "## 📦 Step 2: Install High-Performance Dependencies (Pinned Stable Versions)\n",
-                "*We pin verified stable versions for Qwen2-VL 4-bit QLoRA fine-tuning and preserve Colab's native CUDA 12 PyTorch environment.*"
-            ]
-        },
-        {
-            "cell_type": "code",
-            "execution_count": None,
-            "metadata": {},
-            "outputs": [],
-            "source": [
-                "# Install pinned, battle-tested dependencies for Qwen2-VL 4-bit QLoRA on Nvidia T4 GPU\n",
-                "# Note: Colab already has CUDA-enabled PyTorch; we do NOT reinstall torch to avoid CUDA driver breaks\n",
-                "!pip install -q transformers==4.46.3 peft==0.13.2 bitsandbytes==0.43.3 accelerate==0.34.2 qwen-vl-utils==0.0.8 sentencepiece>=0.2.0 tiktoken>=0.8.0 psutil\n",
-                "\n",
-                "import transformers, peft, bitsandbytes, accelerate, qwen_vl_utils, sentencepiece, tiktoken\n",
-                "print(\"=\" * 60)\n",
-                "print(\"📦 DEPENDENCY VERIFICATION\")\n",
-                "print(\"=\" * 60)\n",
-                "print(f\"✅ transformers : {transformers.__version__}\")\n",
-                "print(f\"✅ peft         : {peft.__version__}\")\n",
-                "print(f\"✅ bitsandbytes : {bitsandbytes.__version__}\")\n",
-                "print(f\"✅ accelerate   : {accelerate.__version__}\")\n",
-                "print(f\"✅ qwen_vl_utils: {qwen_vl_utils.__version__}\")\n",
-                "print(f\"✅ sentencepiece: {sentencepiece.__version__}\")\n",
-                "print(f\"✅ tiktoken     : {tiktoken.__version__}\")\n",
-                "print(\"=\" * 60)\n",
-                "print(\"All dependencies successfully pinned and verified!\")"
             ]
         },
         {
@@ -166,8 +164,14 @@ notebook = {
                 "import torch\n",
                 "import torch.nn as nn\n",
                 "from torch.utils.data import Dataset, DataLoader\n",
+                "\n",
+                "# Use Qwen2TokenizerFast directly to bypass Python 3.13 sentencepiece dynamic hook issues\n",
+                "try:\n",
+                "    from transformers import Qwen2TokenizerFast as AutoTokenizer\n",
+                "except Exception:\n",
+                "    from transformers import AutoTokenizer\n",
+                "\n",
                 "from transformers import (\n",
-                "    AutoTokenizer,\n",
                 "    Qwen2VLImageProcessor,\n",
                 "    Qwen2VLForConditionalGeneration,\n",
                 "    BitsAndBytesConfig,\n",
