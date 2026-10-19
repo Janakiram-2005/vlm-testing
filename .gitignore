@@ -40,3 +40,4 @@ env/
 kaggle_bundle/
 *.zip
 healvlm_qwen2_vl_lora/
+healvlm_local_adapter/
