@@ -81,9 +81,9 @@ notebook = {
             "source": [
                 "# Install pinned, battle-tested dependencies for Qwen2-VL 4-bit QLoRA on Nvidia T4 GPU\n",
                 "# Note: Colab already has CUDA-enabled PyTorch; we do NOT reinstall torch to avoid CUDA driver breaks\n",
-                "!pip install -q transformers==4.46.3 peft==0.13.2 bitsandbytes==0.43.3 accelerate==0.34.2 qwen-vl-utils==0.0.8 psutil\n",
+                "!pip install -q transformers==4.46.3 peft==0.13.2 bitsandbytes==0.43.3 accelerate==0.34.2 qwen-vl-utils==0.0.8 sentencepiece>=0.2.0 tiktoken>=0.8.0 psutil\n",
                 "\n",
-                "import transformers, peft, bitsandbytes, accelerate, qwen_vl_utils\n",
+                "import transformers, peft, bitsandbytes, accelerate, qwen_vl_utils, sentencepiece, tiktoken\n",
                 "print(\"=\" * 60)\n",
                 "print(\"📦 DEPENDENCY VERIFICATION\")\n",
                 "print(\"=\" * 60)\n",
@@ -92,6 +92,8 @@ notebook = {
                 "print(f\"✅ bitsandbytes : {bitsandbytes.__version__}\")\n",
                 "print(f\"✅ accelerate   : {accelerate.__version__}\")\n",
                 "print(f\"✅ qwen_vl_utils: {qwen_vl_utils.__version__}\")\n",
+                "print(f\"✅ sentencepiece: {sentencepiece.__version__}\")\n",
+                "print(f\"✅ tiktoken     : {tiktoken.__version__}\")\n",
                 "print(\"=\" * 60)\n",
                 "print(\"All dependencies successfully pinned and verified!\")"
             ]
