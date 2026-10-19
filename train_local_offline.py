@@ -457,7 +457,7 @@ def run_training():
             local_model_path,
             quantization_config=bnb_config,
             device_map="auto",
-            dtype=compute_dtype,
+            torch_dtype=compute_dtype,
             local_files_only=True,
             trust_remote_code=True
         )
@@ -466,7 +466,7 @@ def run_training():
         base_model = Qwen2VLForConditionalGeneration.from_pretrained(
             local_model_path,
             device_map="cpu",
-            dtype=compute_dtype,
+            torch_dtype=compute_dtype,
             local_files_only=True,
             trust_remote_code=True
         )

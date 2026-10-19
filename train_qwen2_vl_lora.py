@@ -395,15 +395,18 @@ def train():
             MODEL_ID,
             quantization_config=bnb_config,
             device_map="auto",
-            dtype=compute_dtype,
+            torch_dtype=compute_dtype,
             trust_remote_code=True
         )
-        base_model = prepare_model_for_kbit_training(base_model)
+        try:
+            base_model = prepare_model_for_kbit_training(base_model, use_gradient_checkpointing=False)
+        except Exception as e:
+            print(f"Note: prepare_model_for_kbit_training skipped: {e}")
     else:
         base_model = Qwen2VLForConditionalGeneration.from_pretrained(
             MODEL_ID,
             device_map="cpu",
-            dtype=compute_dtype,
+            torch_dtype=compute_dtype,
             trust_remote_code=True
         )
 

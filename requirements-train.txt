@@ -1,0 +1,12 @@
+# ==============================================================================
+# HEALVLM: QWEN2-VL-2B-INSTRUCT 4-BIT QLORA TRAINING DEPENDENCIES
+# ==============================================================================
+# Pinned, battle-tested dependencies for error-free training on Nvidia T4 GPU (Colab/Kaggle)
+# Preserves native CUDA 12 PyTorch runtime without resolver conflicts.
+
+transformers==4.46.3
+peft==0.13.2
+bitsandbytes==0.43.3
+accelerate==0.34.2
+qwen-vl-utils==0.0.8
+psutil
