@@ -454,3 +454,8 @@
 {"image_file": "test_1790995563_step_4.jpg", "instruction": "[test_ui_3.html] Type 'John' in the First Name field", "history": ["Type('JOHN')", "Done", "Done"], "ground_truth": "DONE"}
 {"image_file": "test_1790995563_step_6.jpg", "instruction": "[test_ui_3.html] Type 'John' in the First Name field", "history": ["Type('JOHN')", "Done", "Done", "Done", "Type('JOHN')"], "ground_truth": "DONE"}
 {"image_file": "test_1790995563_step_8.jpg", "instruction": "[test_ui_3.html] Type 'John' in the First Name field", "history": ["Type('JOHN')", "Done", "Done", "Done", "Type('JOHN')", "Forced-Done", "Click(721,498)", "Type('JOHN')"], "ground_truth": "DONE"}
+{"image_file": "test_1792458123_step_1.jpg", "instruction": "[test_ui_2.html] Click the Export Data button", "history": [], "ground_truth": "CLICK [300, 686, 334, 769]"}
+{"image_file": "test_1792458123_step_2.jpg", "instruction": "[test_ui_2.html] Click the Export Data button", "history": ["Click(1396,380)"], "ground_truth": "DONE"}
+{"image_file": "test_1792458123_step_4.jpg", "instruction": "[test_ui_2.html] Click the Export Data button", "history": ["Click(1396,380)", "Done", "Click(1421,368)"], "ground_truth": "DONE"}
+{"image_file": "test_1792458123_step_6.jpg", "instruction": "[test_ui_2.html] Click the Export Data button", "history": ["Click(1396,380)", "Done", "Click(1421,368)", "Done", "Click(1402,379)"], "ground_truth": "DONE"}
+{"image_file": "test_1792458123_step_8.jpg", "instruction": "[test_ui_2.html] Click the Export Data button", "history": ["Click(1396,380)", "Done", "Click(1421,368)", "Done", "Click(1402,379)", "Done", "Click(1401,379)"], "ground_truth": "DONE"}
