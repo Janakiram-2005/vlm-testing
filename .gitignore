@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+cloudflared.exe
 
 # Credentials and sensitive files (STRICT PROTECTION)
 *.json
