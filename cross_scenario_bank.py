@@ -115,7 +115,7 @@ def get_scenarios() -> List[Dict[str, Any]]:
             "goal": "Open the VLM_SANDBOX folder, launch company_portal.html, and click the blue 'Confirm Document Access' button in the browser.",
             "target_app": "company_portal.html",
             "setup_shell": f'start "" "{fixtures["sandbox_dir"]}"',
-            "cleanup_shell": 'taskkill /f /im chrome.exe /im brave.exe /im msedge.exe 2>nul; exit 0',
+            "cleanup_shell": 'cmd /c "taskkill /f /im notepad.exe 2>nul & exit 0"',
             "success_keyword": "company_portal"
         },
         {
@@ -125,7 +125,7 @@ def get_scenarios() -> List[Dict[str, Any]]:
             "goal": "In the VLM_SANDBOX folder, locate invoice_2026.pdf and double-click it to open the document viewer.",
             "target_app": "invoice_2026.pdf",
             "setup_shell": f'start "" "{fixtures["sandbox_dir"]}"',
-            "cleanup_shell": 'taskkill /f /im Acrobat.exe /im msedge.exe /im chrome.exe 2>nul; exit 0',
+            "cleanup_shell": 'cmd /c "taskkill /f /im notepad.exe 2>nul & exit 0"',
             "success_keyword": "invoice_2026"
         },
         {
@@ -134,8 +134,8 @@ def get_scenarios() -> List[Dict[str, Any]]:
             "type": "DESKTOP_APP_NOTEPAD",
             "goal": "Open Notepad, type 'HEALVLM Verified Autonomous Desktop Run', and save the file.",
             "target_app": "notepad.exe",
-            "setup_shell": "taskkill /f /im notepad.exe 2>nul; start notepad.exe",
-            "cleanup_shell": "taskkill /f /im notepad.exe 2>nul; exit 0",
+            "setup_shell": "cmd /c \"taskkill /f /im notepad.exe 2>nul & start notepad.exe\"",
+            "cleanup_shell": "cmd /c \"taskkill /f /im notepad.exe 2>nul & exit 0\"",
             "success_keyword": "Notepad"
         },
         {
@@ -144,8 +144,8 @@ def get_scenarios() -> List[Dict[str, Any]]:
             "type": "DESKTOP_APP_PAINT",
             "goal": "Open MS Paint, select the Rectangle shape, and draw a bounding box across the central white canvas.",
             "target_app": "mspaint.exe",
-            "setup_shell": "taskkill /f /im mspaint.exe 2>nul; start mspaint.exe",
-            "cleanup_shell": "taskkill /f /im mspaint.exe 2>nul; exit 0",
+            "setup_shell": "cmd /c \"taskkill /f /im mspaint.exe 2>nul & start mspaint.exe\"",
+            "cleanup_shell": "cmd /c \"taskkill /f /im mspaint.exe 2>nul & exit 0\"",
             "success_keyword": "Paint"
         }
     ]

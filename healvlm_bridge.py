@@ -177,7 +177,7 @@ def predict_healvlm_action(
             attention_mask=attention_mask,
             pixel_values=pixel_values,
             image_grid_thw=image_grid_thw,
-            max_new_tokens=64,
+            max_new_tokens=128,
             do_sample=False,
             pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
         )

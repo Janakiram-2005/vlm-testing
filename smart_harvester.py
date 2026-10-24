@@ -32,6 +32,7 @@ from unified_desktop_engine import UnifiedDesktopEngine
 from cross_scenario_bank import get_scenarios, setup_sandbox
 from healvlm_bridge import predict_healvlm_action
 from setup_desktop_sheet import log_desktop_test
+from desktop_overlay_hud import DesktopOverlayHUD
 
 # GCP Vertex AI credentials
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'convertionalai-d8da9e4d43dd.json'
@@ -44,6 +45,21 @@ DATASET_JSONL = os.path.join(DATASET_DIR, "dataset.jsonl")
 IMAGES_DIR = os.path.join(DATASET_DIR, "images")
 
 os.makedirs(IMAGES_DIR, exist_ok=True)
+
+def get_cicd_progress_summary() -> Tuple[int, int, float, str]:
+    """Calculates real-time CI/CD progress toward 50-sample retraining."""
+    try:
+        count = 0
+        if os.path.exists(DATASET_JSONL):
+            with open(DATASET_JSONL, "r", encoding="utf-8") as f:
+                count = sum(1 for line in f if line.strip())
+        last_trained = 124
+        threshold = 50
+        delta = max(0, count - last_trained)
+        pct = min(100.0, (delta / threshold) * 100.0)
+        return count, delta, pct, f"CI/CD: {pct:.1f}% [{delta}/{threshold} samples]"
+    except Exception:
+        return 125, 1, 2.0, "CI/CD: Active"
 
 def init_vertex_teacher():
     """Initializes Google GenAI Vertex AI Client."""
@@ -167,6 +183,7 @@ def log_verified_sample(scenario_id: str, goal: str, img_filename: str, thought:
 
 def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Optional[str] = None, num_batches: int = 1, minimize_first: bool = True):
     """Executes the Student-Teacher data collection pipeline across batches."""
+    hud = DesktopOverlayHUD()
     engine = UnifiedDesktopEngine()
     teacher_client = init_vertex_teacher()
     scenarios = get_scenarios()
@@ -205,6 +222,17 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
             last_sample_id = "N/A"
             scenario_success = False
 
+            _, _, _, cicd_str = get_cicd_progress_summary()
+            hud.update_hud(
+                batch_tag=batch_tag,
+                scenario_name=scenario.get("name", s_id),
+                goal=goal,
+                driver="INITIALIZING",
+                action="Preparing scenario...",
+                status="RUNNING",
+                progress_str=cicd_str
+            )
+
             # Fast shell setup
             if scenario.get("setup_shell"):
                 os.system(scenario["setup_shell"])
@@ -223,6 +251,18 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
                 thought = ""
                 action = ""
                 source = "STUDENT_LOCAL"
+
+                _, _, _, cicd_str = get_cicd_progress_summary()
+                hud.update_hud(
+                    batch_tag=batch_tag,
+                    scenario_name=scenario.get("name", s_id),
+                    goal=goal,
+                    driver="STUDENT_LOCAL",
+                    action="Student model reasoning...",
+                    status="THINKING",
+                    progress_str=cicd_str
+                )
+
                 try:
                     student_resp = predict_healvlm_action(img_path, goal)
                     if isinstance(student_resp, dict):
@@ -238,21 +278,51 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
                     print(f"  [Step {step}] ℹ️ Local student bypass: {e}")
                     action = ""
 
-                # 3. Check student quality - if student failed or has blank action, switch to Teacher
-                if not action or "FAILED" in action.upper() or len(action) < 4:
-                    print(f"  [Step {step}] 🤖 Student uncertain -> Shifting to Teacher Vertex AI...")
+                act_type, coords, extra_text, drag_coords = parse_action_coordinates(action)
+
+                # 3. Check student quality - if student failed, blank, truncated, or missing coords, switch to Teacher!
+                needs_teacher = (
+                    not action 
+                    or act_type == "FAILED" 
+                    or (act_type in ["CLICK", "DOUBLE_CLICK"] and coords is None)
+                    or "FAILED" in action.upper()
+                )
+
+                if needs_teacher:
+                    print(f"  [Step {step}] 🤖 Incomplete/uncertain student action -> Shifting to Teacher Vertex AI...")
+                    hud.update_hud(
+                        batch_tag=batch_tag,
+                        scenario_name=scenario.get("name", s_id),
+                        goal=goal,
+                        driver="TEACHER_VERTEX",
+                        action="Vertex Teacher assisting...",
+                        status="ASSISTING",
+                        progress_str=cicd_str
+                    )
                     if teacher_client:
                         thought, action = query_teacher(teacher_client, img_path, goal, active_win)
                         source = "TEACHER_VERTEX"
                         teacher_count += 1
+                        act_type, coords, extra_text, drag_coords = parse_action_coordinates(action)
                     else:
                         action = "DONE"
+                        act_type = "DONE"
 
                 print(f"  [Step {step} | {source}] Thought: {thought}")
                 print(f"  [Step {step} | {source}] Action : {action}")
                 action_chain.append(f"{source}: {action}")
 
-                act_type, coords, extra_text, drag_coords = parse_action_coordinates(action)
+                # Update HUD before action execution
+                hud.update_hud(
+                    batch_tag=batch_tag,
+                    scenario_name=scenario.get("name", s_id),
+                    goal=goal,
+                    driver=source,
+                    action=action,
+                    status="EXECUTING",
+                    progress_str=cicd_str
+                )
+                hud.flash_action(color="#c084fc" if "TEACHER" in source else "#38bdf8")
 
                 if act_type == "DONE":
                     print("  🎯 Task declared completed!")
@@ -301,6 +371,7 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
                 os.system(scenario["cleanup_shell"])
                 time.sleep(0.5)
 
+    hud.close()
     print("\n" + "=" * 65)
     print("✅ ALL HARVESTING BATCHES COMPLETED!")
     print("=" * 65)
