@@ -95,10 +95,10 @@ def extract_true_cases():
                 continue
                 
             img_file = record.get('image_file', '')
-            instruction = record.get('instruction', '').strip()
-            raw_gt = record.get('ground_truth', '').strip()
+            instruction = (record.get('instruction') or record.get('goal') or '').strip()
+            raw_gt = (record.get('ground_truth') or record.get('action') or '').strip()
             thought = record.get('thought', '').strip()
-            platform = record.get('platform', 'Unknown').strip()
+            platform = (record.get('platform') or record.get('scenario') or 'Desktop_OS').strip()
             history = record.get('history', [])
             
             # Check 1: Image exists and is readable
