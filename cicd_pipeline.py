@@ -110,7 +110,7 @@ def next_version(current_ver: str) -> str:
         return f"v{major}.{minor + 1}"
     return "v1.1"
 
-def evaluate_pipeline(force: bool = False):
+def evaluate_pipeline(force: bool = False, auto_vertex: bool = False):
     print("=" * 65)
     print("🔄 CONTINUOUS CI/CD FINE-TUNING PIPELINE")
     print("=" * 65)
@@ -167,6 +167,14 @@ def evaluate_pipeline(force: bool = False):
         print(f"• Archive Generated  : {ZIP_OUTPUT} ({size_mb:.2f} MB)")
         print(f"• Next Target Count  : {current_count + threshold} records")
         print("=" * 65)
+
+        if auto_vertex and os.path.exists("trigger_vertex_training.py"):
+            print("\n☁️ [AUTO-DISPATCH] Launching Vertex AI GPU Training Job...")
+            try:
+                subprocess.run([sys.executable, "trigger_vertex_training.py", "--name", f"healvlm-{new_ver}-run", "--async-run"], check=True)
+            except Exception as e:
+                print(f"⚠️ Vertex trigger error: {e}")
+
         return True
     else:
         remaining = threshold - delta
@@ -178,6 +186,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Continuous CI/CD Dataset Monitor")
     parser.add_argument("--check", action="store_true", help="Check current dataset delta against threshold")
     parser.add_argument("--force", action="store_true", help="Force trigger packaging and next version cycle")
+    parser.add_argument("--auto-vertex", action="store_true", help="Automatically dispatch Vertex AI GPU training if threshold is reached")
     args = parser.parse_args()
 
-    evaluate_pipeline(force=args.force)
+    evaluate_pipeline(force=args.force, auto_vertex=args.auto_vertex)
