@@ -154,7 +154,7 @@ def predict_healvlm_action(
         user_prompt += f"\n[Self-Healing Alert] Previous attempt failed: {past_failure_chain}. Correct your trajectory."
 
     # Format vision prompt tokens
-    img_inputs = processor([image], return_tensors="pt")
+    img_inputs = processor.image_processor([image], return_tensors="pt")
     thw = img_inputs["image_grid_thw"][0]
     num_image_tokens = int((thw[1].item() * thw[2].item()) // 4)
     image_tokens = "<|image_pad|>" * num_image_tokens

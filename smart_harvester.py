@@ -37,7 +37,7 @@ from setup_desktop_sheet import log_desktop_test
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'convertionalai-d8da9e4d43dd.json'
 GCP_PROJECT = 'convertionalai'
 GCP_LOCATION = os.environ.get('VERTEX_LOCATION', 'global')
-TEACHER_MODEL = os.environ.get('VLM_MODEL_NAME', 'gemini-2.0-flash')
+TEACHER_MODEL = os.environ.get('VLM_MODEL_NAME', 'gemini-2.5-flash')
 
 DATASET_DIR = "live_vlm_dataset"
 DATASET_JSONL = os.path.join(DATASET_DIR, "dataset.jsonl")
