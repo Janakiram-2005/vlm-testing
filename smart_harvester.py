@@ -31,6 +31,7 @@ if sys.platform == "win32":
 from unified_desktop_engine import UnifiedDesktopEngine
 from cross_scenario_bank import get_scenarios, setup_sandbox
 from healvlm_bridge import predict_healvlm_action
+from setup_desktop_sheet import log_desktop_test
 
 # GCP Vertex AI credentials
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'convertionalai-d8da9e4d43dd.json'
@@ -146,10 +147,11 @@ def parse_action_coordinates(action_str: str) -> Tuple[str, Optional[Tuple[float
 
     return "FAILED", None, None, None
 
-def log_verified_sample(scenario_id: str, goal: str, img_filename: str, thought: str, action: str, source: str):
-    """Appends verified sample to dataset.jsonl."""
+def log_verified_sample(scenario_id: str, goal: str, img_filename: str, thought: str, action: str, source: str) -> str:
+    """Appends verified sample to dataset.jsonl and returns sample ID."""
+    sample_id = f"desktop_{uuid.uuid4().hex[:8]}"
     sample = {
-        "id": f"desktop_{uuid.uuid4().hex[:8]}",
+        "id": sample_id,
         "scenario": scenario_id,
         "goal": goal,
         "image_file": img_filename,
@@ -161,6 +163,7 @@ def log_verified_sample(scenario_id: str, goal: str, img_filename: str, thought:
     with open(DATASET_JSONL, "a", encoding="utf-8") as f:
         f.write(json.dumps(sample) + "\n")
     print(f"💾 [DATASET] Logged {source} sample ({img_filename}) -> {action}")
+    return sample_id
 
 def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Optional[str] = None):
     """Executes the Student-Teacher data collection pipeline."""
@@ -183,6 +186,13 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
         print(f"\n▶️ RUNNING SCENARIO: {s_id}")
         print(f"   Goal: {goal}")
 
+        t_scenario_start = time.time()
+        action_chain = []
+        window_seq = []
+        teacher_count = 0
+        last_sample_id = "N/A"
+        scenario_success = False
+
         # Fast shell setup
         if scenario.get("setup_shell"):
             os.system(scenario["setup_shell"])
@@ -190,6 +200,7 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
 
         for step in range(1, max_steps_per_scenario + 1):
             active_win = engine.get_active_window_title()
+            window_seq.append(active_win)
             img_name = f"harvest_{s_id}_step{step}_{int(time.time())}.jpg"
             img_path = os.path.join(IMAGES_DIR, img_name)
             
@@ -208,17 +219,20 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
                 if teacher_client:
                     thought, action = query_teacher(teacher_client, img_path, goal, active_win)
                     source = "TEACHER_VERTEX"
+                    teacher_count += 1
                 else:
                     action = "DONE"
 
             print(f"  [Step {step} | {source}] Thought: {thought}")
             print(f"  [Step {step} | {source}] Action : {action}")
+            action_chain.append(f"{source}: {action}")
 
             act_type, coords, extra_text, drag_coords = parse_action_coordinates(action)
 
             if act_type == "DONE":
                 print("  🎯 Task declared completed!")
-                log_verified_sample(s_id, goal, img_name, thought, action, source)
+                last_sample_id = log_verified_sample(s_id, goal, img_name, thought, action, source)
+                scenario_success = True
                 break
 
             # 4. Execute physical action
@@ -234,8 +248,27 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
                 engine.drag((drag_coords[0], drag_coords[1]), (drag_coords[2], drag_coords[3]))
 
             # Log this verified transition
-            log_verified_sample(s_id, goal, img_name, thought, action, source)
+            last_sample_id = log_verified_sample(s_id, goal, img_name, thought, action, source)
             time.sleep(0.8)
+
+        # Log scenario run to Google Sheet Desktop_Web_Benchmark
+        total_time_ms = (time.time() - t_scenario_start) * 1000.0
+        final_status = "SUCCESS" if scenario_success else ("RECOVERED_BY_TEACHER" if teacher_count > 0 else "COMPLETED")
+        primary_driver = "TEACHER_VERTEX" if teacher_count > 0 else "STUDENT_LOCAL"
+
+        log_desktop_test(
+            scenario_id=s_id,
+            env_type=scenario.get("type", "DESKTOP"),
+            goal=goal,
+            driver=primary_driver,
+            status=final_status,
+            total_steps=len(action_chain),
+            latency_ms=total_time_ms,
+            action_chain=action_chain,
+            window_seq=window_seq,
+            teacher_interventions=teacher_count,
+            sample_id=last_sample_id
+        )
 
         # Cleanup scenario
         if scenario.get("cleanup_shell"):
