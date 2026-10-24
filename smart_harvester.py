@@ -165,8 +165,8 @@ def log_verified_sample(scenario_id: str, goal: str, img_filename: str, thought:
     print(f"💾 [DATASET] Logged {source} sample ({img_filename}) -> {action}")
     return sample_id
 
-def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Optional[str] = None):
-    """Executes the Student-Teacher data collection pipeline."""
+def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Optional[str] = None, num_batches: int = 1, minimize_first: bool = True):
+    """Executes the Student-Teacher data collection pipeline across batches."""
     engine = UnifiedDesktopEngine()
     teacher_client = init_vertex_teacher()
     scenarios = get_scenarios()
@@ -177,106 +177,132 @@ def run_harvesting_cycle(max_steps_per_scenario: int = 3, single_scenario_id: Op
     print("=" * 65)
     print("🌾 SMART STUDENT-TEACHER HARVESTING PIPELINE ACTIVE")
     print(f"• Teacher Model: {TEACHER_MODEL} on GCP Vertex AI")
-    print(f"• Scenarios to Execute: {len(scenarios)}")
+    print(f"• Total Batches to Execute: {num_batches}")
+    print(f"• Scenarios per Batch     : {len(scenarios)}")
     print("=" * 65)
 
-    for scenario in scenarios:
-        s_id = scenario["id"]
-        goal = scenario["goal"]
-        print(f"\n▶️ RUNNING SCENARIO: {s_id}")
-        print(f"   Goal: {goal}")
+    if minimize_first:
+        print("🪟 [SAFE TRIGGER] Pressing Windows + D to minimize all windows and reveal clean desktop...")
+        engine.hotkey('win', 'd')
+        time.sleep(1.2)
 
-        t_scenario_start = time.time()
-        action_chain = []
-        window_seq = []
-        teacher_count = 0
-        last_sample_id = "N/A"
-        scenario_success = False
+    for batch_idx in range(1, num_batches + 1):
+        batch_tag = f"Batch-{batch_idx:02d}"
+        print(f"\n{'#' * 65}")
+        print(f"📦 STARTING {batch_tag} OF {num_batches:02d}")
+        print(f"{'#' * 65}")
 
-        # Fast shell setup
-        if scenario.get("setup_shell"):
-            os.system(scenario["setup_shell"])
-            time.sleep(1.2)
+        for scenario in scenarios:
+            s_id = scenario["id"]
+            goal = scenario["goal"]
+            print(f"\n▶️ [{batch_tag}] RUNNING SCENARIO: {s_id}")
+            print(f"   Goal: {goal}")
 
-        for step in range(1, max_steps_per_scenario + 1):
-            active_win = engine.get_active_window_title()
-            window_seq.append(active_win)
-            img_name = f"harvest_{s_id}_step{step}_{int(time.time())}.jpg"
-            img_path = os.path.join(IMAGES_DIR, img_name)
-            
-            # 1. Capture screen
-            raw_img, vlm_img = engine.capture_screen(save_path=img_path)
+            t_scenario_start = time.time()
+            action_chain = []
+            window_seq = []
+            teacher_count = 0
+            last_sample_id = "N/A"
+            scenario_success = False
 
-            # 2. Student attempts prediction
-            student_resp = predict_healvlm_action(vlm_img, goal)
-            thought = student_resp.get("thought", "")
-            action = student_resp.get("action", "")
-            source = "STUDENT_LOCAL"
+            # Fast shell setup
+            if scenario.get("setup_shell"):
+                os.system(scenario["setup_shell"])
+                time.sleep(1.2)
 
-            # 3. Check student quality - if student failed or has blank action, switch to Teacher
-            if not action or "FAILED" in action.upper() or len(action) < 4:
-                print(f"  [Step {step}] 🤖 Student uncertain -> Shifting to Teacher Vertex AI...")
-                if teacher_client:
-                    thought, action = query_teacher(teacher_client, img_path, goal, active_win)
-                    source = "TEACHER_VERTEX"
-                    teacher_count += 1
-                else:
-                    action = "DONE"
+            for step in range(1, max_steps_per_scenario + 1):
+                active_win = engine.get_active_window_title()
+                window_seq.append(active_win)
+                img_name = f"harvest_{batch_tag}_{s_id}_step{step}_{int(time.time())}.jpg"
+                img_path = os.path.join(IMAGES_DIR, img_name)
+                
+                # 1. Capture screen
+                raw_img, vlm_img = engine.capture_screen(save_path=img_path)
 
-            print(f"  [Step {step} | {source}] Thought: {thought}")
-            print(f"  [Step {step} | {source}] Action : {action}")
-            action_chain.append(f"{source}: {action}")
+                # 2. Student attempts prediction
+                thought = ""
+                action = ""
+                source = "STUDENT_LOCAL"
+                try:
+                    student_resp = predict_healvlm_action(img_path, goal)
+                    if isinstance(student_resp, dict):
+                        thought = student_resp.get("thought", "")
+                        action = student_resp.get("action", "")
+                    else:
+                        for line in str(student_resp).splitlines():
+                            if line.upper().startswith("THOUGHT:"):
+                                thought = line[8:].strip()
+                            elif line.upper().startswith("ACTION:"):
+                                action = line[7:].strip()
+                except Exception as e:
+                    print(f"  [Step {step}] ℹ️ Local student bypass: {e}")
+                    action = ""
 
-            act_type, coords, extra_text, drag_coords = parse_action_coordinates(action)
+                # 3. Check student quality - if student failed or has blank action, switch to Teacher
+                if not action or "FAILED" in action.upper() or len(action) < 4:
+                    print(f"  [Step {step}] 🤖 Student uncertain -> Shifting to Teacher Vertex AI...")
+                    if teacher_client:
+                        thought, action = query_teacher(teacher_client, img_path, goal, active_win)
+                        source = "TEACHER_VERTEX"
+                        teacher_count += 1
+                    else:
+                        action = "DONE"
 
-            if act_type == "DONE":
-                print("  🎯 Task declared completed!")
+                print(f"  [Step {step} | {source}] Thought: {thought}")
+                print(f"  [Step {step} | {source}] Action : {action}")
+                action_chain.append(f"{source}: {action}")
+
+                act_type, coords, extra_text, drag_coords = parse_action_coordinates(action)
+
+                if act_type == "DONE":
+                    print("  🎯 Task declared completed!")
+                    last_sample_id = log_verified_sample(s_id, goal, img_name, thought, action, source)
+                    scenario_success = True
+                    break
+
+                # 4. Execute physical action
+                if act_type == "DOUBLE_CLICK" and coords:
+                    engine.double_click(coords[0], coords[1])
+                elif act_type == "CLICK" and coords:
+                    engine.click(coords[0], coords[1])
+                elif act_type == "TYPE" and coords:
+                    engine.click(coords[0], coords[1])
+                    time.sleep(0.2)
+                    engine.type_text(extra_text or "Hello World", press_enter=True)
+                elif act_type == "DRAG" and drag_coords:
+                    engine.drag((drag_coords[0], drag_coords[1]), (drag_coords[2], drag_coords[3]))
+
+                # Log this verified transition
                 last_sample_id = log_verified_sample(s_id, goal, img_name, thought, action, source)
-                scenario_success = True
-                break
+                time.sleep(0.8)
 
-            # 4. Execute physical action
-            if act_type == "DOUBLE_CLICK" and coords:
-                engine.double_click(coords[0], coords[1])
-            elif act_type == "CLICK" and coords:
-                engine.click(coords[0], coords[1])
-            elif act_type == "TYPE" and coords:
-                engine.click(coords[0], coords[1])
-                time.sleep(0.2)
-                engine.type_text(extra_text or "Hello World", press_enter=True)
-            elif act_type == "DRAG" and drag_coords:
-                engine.drag((drag_coords[0], drag_coords[1]), (drag_coords[2], drag_coords[3]))
+            # Log scenario run to Google Sheet Desktop_Web_Benchmark
+            total_time_ms = (time.time() - t_scenario_start) * 1000.0
+            final_status = "SUCCESS" if scenario_success else ("RECOVERED_BY_TEACHER" if teacher_count > 0 else "COMPLETED")
+            primary_driver = "TEACHER_VERTEX" if teacher_count > 0 else "STUDENT_LOCAL"
 
-            # Log this verified transition
-            last_sample_id = log_verified_sample(s_id, goal, img_name, thought, action, source)
-            time.sleep(0.8)
+            log_desktop_test(
+                scenario_id=s_id,
+                env_type=scenario.get("type", "DESKTOP"),
+                goal=goal,
+                driver=primary_driver,
+                status=final_status,
+                total_steps=len(action_chain),
+                latency_ms=total_time_ms,
+                action_chain=action_chain,
+                window_seq=window_seq,
+                teacher_interventions=teacher_count,
+                sample_id=last_sample_id,
+                batch_id=batch_tag
+            )
 
-        # Log scenario run to Google Sheet Desktop_Web_Benchmark
-        total_time_ms = (time.time() - t_scenario_start) * 1000.0
-        final_status = "SUCCESS" if scenario_success else ("RECOVERED_BY_TEACHER" if teacher_count > 0 else "COMPLETED")
-        primary_driver = "TEACHER_VERTEX" if teacher_count > 0 else "STUDENT_LOCAL"
-
-        log_desktop_test(
-            scenario_id=s_id,
-            env_type=scenario.get("type", "DESKTOP"),
-            goal=goal,
-            driver=primary_driver,
-            status=final_status,
-            total_steps=len(action_chain),
-            latency_ms=total_time_ms,
-            action_chain=action_chain,
-            window_seq=window_seq,
-            teacher_interventions=teacher_count,
-            sample_id=last_sample_id
-        )
-
-        # Cleanup scenario
-        if scenario.get("cleanup_shell"):
-            os.system(scenario["cleanup_shell"])
-            time.sleep(0.5)
+            # Cleanup scenario
+            if scenario.get("cleanup_shell"):
+                os.system(scenario["cleanup_shell"])
+                time.sleep(0.5)
 
     print("\n" + "=" * 65)
-    print("✅ HARVESTING CYCLE FINISHED!")
+    print("✅ ALL HARVESTING BATCHES COMPLETED!")
     print("=" * 65)
 
 if __name__ == "__main__":
@@ -284,6 +310,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Student-Teacher Harvester")
     parser.add_argument("--scenario", default=None, help="Specific scenario ID")
     parser.add_argument("--steps", type=int, default=2, help="Max steps per scenario")
+    parser.add_argument("--batches", type=int, default=1, help="Number of batches to run")
+    parser.add_argument("--no-minimize", action="store_true", help="Skip initial Win+D minimize")
     args = parser.parse_args()
 
-    run_harvesting_cycle(max_steps_per_scenario=args.steps, single_scenario_id=args.scenario)
+    run_harvesting_cycle(
+        max_steps_per_scenario=args.steps,
+        single_scenario_id=args.scenario,
+        num_batches=args.batches,
+        minimize_first=not args.no_minimize
+    )
